@@ -340,7 +340,7 @@ function renderMatrix() {
     },
     svg('title', {}, `${item.title}\nImpact ${fmt(s.impact)} · Effort ${fmt(s.effort)} · Cost ${fmt(s.cost)}${item.costAmount != null ? ` (${money(item.costAmount)})` : ''}`),
     debate ? svg('circle', { cx, cy, r: r + 4, class: 'debate-ring' }) : null,
-    svg('circle', { cx, cy, r, fill: costColor(s.cost), class: s.cost == null ? 'no-cost' : '' }),
+    svg('circle', { cx, cy, r, style: `fill:${costColor(s.cost)}`, class: s.cost == null ? 'no-cost' : '' }),
     svg('text', { x: labelPos.x, y: labelPos.y, 'text-anchor': labelPos.anchor, class: 'dot-label' }, label)));
   }
   container.replaceChildren(root);

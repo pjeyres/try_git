@@ -1,0 +1,997 @@
+<title>Impact Matrix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Japandi: linen and rice-paper neutrals, sumi ink, moss accent, earth-tone cost scale.
+   Layout: one calm column; the matrix is the hero, tools sit quietly above it. */
+:root {
+  --bg: #f2eee7;
+  --surface: #faf8f4;
+  --sunken: #ebe5db;
+  --text: #2d2a26;
+  --muted: #776f65;
+  --border: #ddd5c8;
+  --accent: #46503f;
+  --accent-text: #f7f4ee;
+  --danger: #9c4a36;
+  --grid: #e6dfd4;
+  --unscored: #c9c0b3;
+  --debate: #56627a;
+  --cost-1: #8f9e80;
+  --cost-2: #aaa47c;
+  --cost-3: #c3a273;
+  --cost-4: #b67f5c;
+  --cost-5: #985a44;
+  --cost-on: #ffffff;
+  --q-quickWin: rgba(143, 158, 128, 0.16);
+  --q-bigProject: rgba(195, 162, 115, 0.12);
+  --q-fillIn: rgba(201, 192, 179, 0.18);
+  --q-timeSink: rgba(182, 127, 92, 0.10);
+  --scrim: rgba(45, 42, 38, 0.35);
+  --display: "Shippori Mincho", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --body: "Zen Kaku Gothic New", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --radius: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c1a17; --surface: #24211d; --sunken: #2c2824; --text: #ebe5da; --muted: #a29889;
+    --border: #39342e; --accent: #b3bea5; --accent-text: #1c1a17; --danger: #d38a72; --grid: #322d28;
+    --unscored: #5e574e; --debate: #93a1bd;
+    --cost-1: #9aab8a; --cost-2: #b5ae84; --cost-3: #cdaa78; --cost-4: #c58d69; --cost-5: #b36c53; --cost-on: #1c1a17;
+    --q-quickWin: rgba(154, 171, 138, 0.12); --q-bigProject: rgba(205, 170, 120, 0.09);
+    --q-fillIn: rgba(162, 152, 137, 0.08); --q-timeSink: rgba(197, 141, 105, 0.09);
+    --scrim: rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1c1a17; --surface: #24211d; --sunken: #2c2824; --text: #ebe5da; --muted: #a29889;
+  --border: #39342e; --accent: #b3bea5; --accent-text: #1c1a17; --danger: #d38a72; --grid: #322d28;
+  --unscored: #5e574e; --debate: #93a1bd;
+  --cost-1: #9aab8a; --cost-2: #b5ae84; --cost-3: #cdaa78; --cost-4: #c58d69; --cost-5: #b36c53; --cost-on: #1c1a17;
+  --q-quickWin: rgba(154, 171, 138, 0.12); --q-bigProject: rgba(205, 170, 120, 0.09);
+  --q-fillIn: rgba(162, 152, 137, 0.08); --q-timeSink: rgba(197, 141, 105, 0.09);
+  --scrim: rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 400 16px/1.6 var(--body);
+  letter-spacing: .01em;
+  -webkit-text-size-adjust: 100%;
+}
+h1, h2, h3 { margin: 0; line-height: 1.3; font-family: var(--display); font-weight: 500; letter-spacing: .03em; text-wrap: balance; }
+h1 { font-size: 1.7rem; }
+h2 { font-size: 1.3rem; }
+h3 { font-size: 1rem; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+
+button, input, select, textarea { font: inherit; color: inherit; letter-spacing: inherit; }
+button {
+  cursor: pointer; border: 1px solid var(--border); background: var(--surface);
+  border-radius: var(--radius); padding: .5rem 1rem; transition: border-color .15s, background-color .15s;
+}
+button:hover { border-color: var(--muted); }
+button:disabled { cursor: default; opacity: .55; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 500; }
+button.danger { color: var(--danger); }
+button.link { border: 0; background: none; padding: 0; text-decoration: underline; text-decoration-color: var(--muted); text-underline-offset: 3px; }
+button.icon { border: 0; background: none; font-size: 1.1rem; padding: .25rem .5rem; color: var(--muted); }
+button.big { width: 100%; padding: .9rem; font-family: var(--display); font-size: 1.05rem; }
+:focus-visible { outline: 1.5px solid var(--accent); outline-offset: 2px; }
+input, select, textarea {
+  border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius);
+  padding: .5rem .7rem; min-width: 0;
+}
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: .8; }
+textarea { width: 100%; resize: vertical; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 1rem; }
+
+.screen { min-height: 70vh; display: grid; place-items: center; padding: 24px 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; }
+.narrow { width: 100%; max-width: 420px; display: grid; gap: 1rem; }
+.stack { display: grid; gap: .5rem; }
+.row { display: flex; gap: .5rem; }
+.row input { flex: 1; }
+.enso { width: 56px; height: 56px; }
+
+/* top bar */
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  display: flex; align-items: center; gap: 1rem; padding: .75rem 16px;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.brand { font-size: 1.15rem; white-space: nowrap; letter-spacing: .08em; }
+.tabs { display: flex; gap: .4rem; overflow-x: auto; flex: 1; scrollbar-width: none; }
+.tab { display: flex; align-items: center; border-radius: var(--radius); border: 1px solid transparent; white-space: nowrap; }
+.tab button { border: 0; background: none; padding: .3rem .8rem; color: var(--muted); }
+.tab.active { background: var(--surface); border-color: var(--border); }
+.tab.active button { color: var(--text); font-weight: 500; }
+.tab .tab-menu { padding: .3rem .6rem .3rem 0; }
+.tab .count { margin-left: .45rem; font-size: .75rem; color: var(--muted); }
+.tab-add { border: 1px dashed var(--border); background: none; padding: .3rem .8rem; color: var(--muted); }
+.chip { border-radius: 999px; padding: .3rem .9rem; white-space: nowrap; font-size: .9rem; background: none; }
+
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 1rem; }
+.add-item { display: flex; gap: .5rem; }
+.add-item input { flex: 1; padding: .75rem .9rem; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: .6rem 1.25rem; align-items: center; font-size: .9rem; }
+.control { display: inline-flex; align-items: center; gap: .45rem; color: var(--muted); }
+.control select, .control input { color: var(--text); }
+.control input[type=range] { width: 110px; padding: 0; border: 0; background: none; accent-color: var(--accent); }
+.control output { min-width: 3ch; color: var(--text); font-variant-numeric: tabular-nums; }
+.check input { accent-color: var(--accent); }
+.segmented { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.segmented button { border: 0; border-radius: 0; padding: .4rem .9rem; background: none; color: var(--muted); }
+.segmented button + button { border-left: 1px solid var(--border); }
+.segmented button.on { background: var(--sunken); color: var(--text); font-weight: 500; }
+
+.banner {
+  background: var(--surface); border: 1px solid var(--border); border-left: 2px solid var(--debate);
+  border-radius: var(--radius); padding: .6rem .9rem; font-size: .9rem;
+}
+
+/* matrix */
+.matrix { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.matrix svg { display: block; width: 100%; height: auto; }
+.quad-label { font-family: var(--display); font-size: 14px; font-weight: 500; letter-spacing: .05em; fill: var(--text); opacity: .75; }
+.quad-hint { font-size: 11px; fill: var(--muted); }
+.grid { stroke: var(--grid); stroke-width: 1; }
+.tick { font-size: 11px; fill: var(--muted); }
+.axis-label { font-size: 12px; letter-spacing: .08em; fill: var(--muted); }
+.dot { cursor: pointer; }
+.dot circle { stroke: var(--surface); stroke-width: 2; }
+.dot circle.no-cost { stroke: var(--muted); stroke-dasharray: 3 2; }
+.dot .debate-ring { fill: none; stroke: var(--debate); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.dot.done { opacity: .4; }
+.dot-label { font-size: 12px; fill: var(--text); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+.dot:hover .dot-label { font-weight: 700; }
+.legend { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; font-size: .8rem; color: var(--muted); padding: .6rem .25rem 0; }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 3px; vertical-align: -1px; }
+.legend .ring-sample { border: 1.5px dashed var(--debate); width: 13px; height: 13px; }
+.unscored { display: grid; gap: .5rem; margin-top: .75rem; }
+.pills { display: flex; flex-wrap: wrap; gap: .4rem; }
+.pill { border-radius: 999px; padding: .3rem .85rem; font-size: .9rem; border-style: dashed; background: none; }
+
+/* ranked */
+.ranked { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.row-item { display: flex; align-items: center; gap: .75rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem 1rem; }
+.row-item input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+.row-item.done .row-title { text-decoration: line-through; color: var(--muted); }
+.row-main { flex: 1; border: 0; background: none; padding: 0; text-align: left; display: grid; gap: .2rem; min-width: 0; }
+.row-title { font-weight: 500; overflow-wrap: anywhere; }
+.row-meta { display: flex; flex-wrap: wrap; gap: .3rem .7rem; font-size: .8rem; color: var(--muted); align-items: center; font-variant-numeric: tabular-nums; }
+.score { font-family: var(--display); font-size: 1.15rem; font-variant-numeric: tabular-nums; min-width: 3.5ch; text-align: right; }
+.tag { font-size: .75rem; border-radius: 999px; padding: .05rem .55rem; color: var(--text); }
+.tag.q-quickWin { background: var(--q-quickWin); }
+.tag.q-bigProject { background: var(--q-bigProject); }
+.tag.q-fillIn { background: var(--q-fillIn); }
+.tag.q-timeSink { background: var(--q-timeSink); }
+.tag.debate { color: var(--debate); border: 1px solid var(--debate); justify-self: start; }
+.tag.waiting { border: 1px dashed var(--border); color: var(--muted); }
+.empty { padding: 1.5rem; text-align: center; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius); }
+
+/* dialogs */
+dialog {
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); color: var(--text); padding: 1.25rem;
+}
+dialog::backdrop { background: var(--scrim); }
+#item-form { display: grid; gap: 1rem; }
+.dialog-head { display: flex; gap: .5rem; align-items: center; }
+.title-input { flex: 1; font-family: var(--display); font-size: 1.25rem; border-color: transparent; background: none; padding-left: 0; }
+.title-input:hover:not(:disabled), .title-input:focus { border-color: var(--border); padding-left: .7rem; }
+.scores { display: grid; gap: .45rem; }
+.score-row { display: grid; grid-template-columns: 4.2rem auto 1fr; align-items: center; gap: .6rem; }
+.dim { font-size: .9rem; color: var(--muted); }
+.pips { display: inline-flex; gap: .35rem; }
+.pips button { width: 2.2rem; height: 2.2rem; padding: 0; border-radius: 50%; background: none; font-variant-numeric: tabular-nums; }
+.pips button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.pips.dim-cost button.on { background: var(--cost-4); border-color: var(--cost-4); color: var(--cost-on); }
+.pip-label { font-size: .8rem; }
+.others { font-size: .9rem; display: grid; gap: .3rem; padding: .75rem .9rem; background: var(--sunken); border-radius: var(--radius); }
+.others strong { font-weight: 500; }
+.field { display: grid; gap: .3rem; font-size: .85rem; color: var(--muted); }
+.field select, .field textarea, .field input { color: var(--text); font-size: 1rem; }
+.money { display: flex; align-items: center; gap: .4rem; }
+.money input { flex: 1; }
+.dialog-foot { display: flex; justify-content: space-between; gap: .5rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+#ask-form { display: grid; gap: .9rem; }
+.ask-actions { display: flex; flex-wrap: wrap; flex-direction: row-reverse; gap: .5rem; }
+.ask-actions .danger { margin-right: auto; }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  background: var(--text); color: var(--bg); padding: .6rem 1.1rem; border-radius: var(--radius); z-index: 20;
+  max-width: calc(100vw - 32px);
+}
+
+@media (max-width: 600px) {
+  .brand { display: none; }
+  .toolbar { font-size: .85rem; gap: .5rem 1rem; }
+  .score-row { grid-template-columns: 3.6rem auto; }
+  .pip-label { grid-column: 2; margin-top: -.25rem; }
+  .pips button { width: 2.4rem; height: 2.4rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<section id="loading" class="screen">
+  <div class="narrow" style="justify-items:center;text-align:center">
+    <svg class="enso" viewBox="0 0 56 56" aria-hidden="true"><path d="M44 14a21 21 0 1 0 5 15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".55"/></svg>
+    <h1>Impact Matrix</h1>
+    <p class="muted">Shared to-do lists you each score for impact, effort and cost. Opening your lists…</p>
+  </div>
+</section>
+
+<section id="nodb" class="screen" hidden>
+  <div class="card narrow">
+    <h1>Impact Matrix</h1>
+    <p>Your shared lists open inside claude.ai. Sign in to Claude, then open this page again from the link you were sent.</p>
+    <p class="muted">If you are signed in and still see this, ask the person who shared it to invite you by email as an Editor.</p>
+  </div>
+</section>
+
+<section id="whoami" class="screen" hidden>
+  <div class="card narrow">
+    <h1>Who’s this?</h1>
+    <p class="muted">You each score tasks separately, so the matrix needs to know who is on this device.</p>
+    <div id="member-buttons" class="stack"></div>
+    <form id="member-form" class="row">
+      <input id="member-name" name="name" placeholder="Your name" maxlength="60" required autocomplete="given-name">
+      <button class="primary" type="submit">Add me</button>
+    </form>
+  </div>
+</section>
+
+<section id="app" hidden>
+  <header class="topbar">
+    <h1 class="brand">Impact Matrix</h1>
+    <nav id="list-tabs" class="tabs" aria-label="Lists"></nav>
+    <button id="me-chip" class="chip" type="button" title="Switch person"></button>
+  </header>
+
+  <main>
+    <div id="readonly-banner" class="banner" hidden>You can view these lists but not change them. To edit, ask the owner to share the page with you by email as an Editor.</div>
+
+    <div id="empty-lists" class="screen" hidden>
+      <div class="card narrow">
+        <h2>Start your first list</h2>
+        <p class="muted">For example House, Garden or Holiday. Add tasks, then each of you scores them from 1 to 5 for impact, effort and cost.</p>
+        <form id="first-list-form" class="row">
+          <input id="first-list-name" name="name" placeholder="List name" maxlength="60" required>
+          <button class="primary" type="submit">Create</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="list-view" hidden style="display:grid;gap:1rem">
+      <form id="add-item-form" class="add-item">
+        <input id="add-item-title" name="title" placeholder="Add a task…" maxlength="200" required autocomplete="off">
+        <button class="primary" type="submit">Add</button>
+      </form>
+
+      <div class="toolbar">
+        <div class="segmented" id="view-toggle" role="tablist">
+          <button type="button" data-value="matrix" role="tab">Matrix</button>
+          <button type="button" data-value="ranked" role="tab">Ranked</button>
+        </div>
+        <label class="control">Scores <select id="score-view"></select></label>
+        <label class="control">Across
+          <select id="x-axis">
+            <option value="effort">Effort</option>
+            <option value="cost">Cost</option>
+            <option value="blend">Effort + cost</option>
+          </select>
+        </label>
+        <label class="control" title="How much cost matters compared with effort when ranking">Cost weight
+          <input type="range" id="cost-weight" min="0" max="100" step="10">
+          <output id="cost-weight-out"></output>
+        </label>
+        <label class="control check"><input type="checkbox" id="show-done"> Show done</label>
+      </div>
+
+      <div id="todo-banner" class="banner" hidden></div>
+
+      <section id="matrix-panel">
+        <div id="matrix" class="matrix"></div>
+        <div class="legend" id="legend"></div>
+        <div id="unscored" class="unscored"></div>
+      </section>
+
+      <section id="ranked-panel" hidden>
+        <ol id="ranked" class="ranked"></ol>
+      </section>
+    </div>
+  </main>
+</section>
+
+<dialog id="item-dialog">
+  <form method="dialog" id="item-form">
+    <div class="dialog-head">
+      <input id="item-title" name="title" class="title-input" maxlength="200" required aria-label="Task title">
+      <button value="close" class="icon" aria-label="Close">✕</button>
+    </div>
+    <fieldset id="item-fields">
+      <div id="my-scores" class="scores"></div>
+      <div id="other-scores" class="others"></div>
+      <label class="field">Estimated cost
+        <span class="money"><span>€</span><input id="item-cost" name="costAmount" type="number" min="0" step="any" inputmode="decimal" placeholder="optional"></span>
+      </label>
+      <label class="field">Notes
+        <textarea id="item-notes" name="notes" rows="3" maxlength="2000" placeholder="Details, links, who’s doing it…"></textarea>
+      </label>
+      <label class="field">List
+        <select id="item-list" name="listId"></select>
+      </label>
+      <div class="dialog-foot">
+        <button type="button" id="delete-item" class="danger">Delete</button>
+        <button type="button" id="toggle-done"></button>
+      </div>
+    </fieldset>
+  </form>
+</dialog>
+
+<dialog id="ask">
+  <form method="dialog" id="ask-form">
+    <h2 id="ask-title"></h2>
+    <p id="ask-text" class="muted"></p>
+    <input id="ask-input" maxlength="60" autocomplete="off">
+    <div id="ask-actions" class="ask-actions"></div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---- scoring (same maths as the self-hosted app) ---------------------------------
+  const DIMENSIONS = ['impact', 'effort', 'cost'];
+  const MIDPOINT = 3;
+  const LABELS = {
+    impact: ['Tiny', 'Small', 'Medium', 'Big', 'Huge'],
+    effort: ['Minutes', 'An hour', 'A day', 'A weekend', 'Weeks'],
+    cost: ['Free', 'Cheap', 'Moderate', 'Pricey', 'Expensive'],
+  };
+  const QUADRANTS = {
+    quickWin: { name: 'Quick wins', hint: 'Do these first' },
+    bigProject: { name: 'Big projects', hint: 'Plan these together' },
+    fillIn: { name: 'Fill-ins', hint: 'When you have a spare moment' },
+    timeSink: { name: 'Time sinks', hint: 'Question or drop' },
+  };
+  const valuesFor = (item, dim) => Object.values(item.scores || {}).map((s) => s && s[dim]).filter((v) => Number.isFinite(v));
+  function scoresFor(item, view) {
+    if (view !== 'combined') {
+      const own = (item.scores || {})[view] || {};
+      return Object.fromEntries(DIMENSIONS.map((d) => [d, Number.isFinite(own[d]) ? own[d] : null]));
+    }
+    const out = {};
+    for (const d of DIMENSIONS) {
+      const v = valuesFor(item, d);
+      out[d] = v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+    }
+    return out;
+  }
+  function disagreement(item) {
+    let worst = 0;
+    for (const d of DIMENSIONS) {
+      const v = valuesFor(item, d);
+      if (v.length > 1) worst = Math.max(worst, Math.max(...v) - Math.min(...v));
+    }
+    return worst;
+  }
+  const missingScorers = (item, ids) => ids.filter((m) => DIMENSIONS.some((d) => !Number.isFinite(((item.scores || {})[m] || {})[d])));
+  function xValue(s, axis, w) {
+    if (axis === 'effort') return s.effort;
+    if (axis === 'cost') return s.cost;
+    if (s.effort == null) return s.cost;
+    if (s.cost == null) return s.effort;
+    return s.effort * (1 - w) + s.cost * w;
+  }
+  function priority(s, w) {
+    const x = xValue(s, 'blend', w);
+    return s.impact == null || x == null ? null : s.impact / x;
+  }
+  function quadrant(s, axis, w) {
+    const x = xValue(s, axis, w);
+    if (s.impact == null || x == null) return null;
+    const high = s.impact >= MIDPOINT, easy = x < MIDPOINT;
+    return high ? (easy ? 'quickWin' : 'bigProject') : (easy ? 'fillIn' : 'timeSink');
+  }
+  function rankItems(items, view, w) {
+    return items.map((item) => {
+      const scores = scoresFor(item, view);
+      return { item, scores, priority: priority(scores, w) };
+    }).sort((a, b) => {
+      if (a.item.done !== b.item.done) return a.item.done ? 1 : -1;
+      if (a.priority == null && b.priority == null) return String(a.item.createdAt).localeCompare(String(b.item.createdAt));
+      if (a.priority == null) return 1;
+      if (b.priority == null) return -1;
+      return b.priority - a.priority || (b.scores.impact || 0) - (a.scores.impact || 0);
+    });
+  }
+
+  // ---- per-device preferences ------------------------------------------------------
+  const prefs = {
+    get(k, d) { try { const v = localStorage.getItem('im.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem('im.' + k, JSON.stringify(v)); } catch { /* unavailable */ } },
+  };
+  const ui = {
+    me: prefs.get('me', null),
+    listId: prefs.get('listId', null),
+    view: prefs.get('view', 'matrix'),
+    scoreView: prefs.get('scoreView', 'combined'),
+    xAxis: prefs.get('xAxis', 'effort'),
+    costWeight: prefs.get('costWeight', 0.5),
+    showDone: prefs.get('showDone', false),
+    openItemId: null,
+  };
+
+  // ---- store -----------------------------------------------------------------------
+  const store = { db: null, userId: null, readOnly: false, suggestedName: '' };
+  let state = { members: [], lists: [], items: [] };
+  const loaded = new Set();
+  const byCreated = (a, b) => String(a.createdAt).localeCompare(String(b.createdAt));
+  const now = () => new Date().toISOString();
+  const READ_ONLY = 'You can view but not change these lists. Ask the owner to share the page with you by email as an Editor.';
+
+  function subscribe(name) {
+    store.db.collection(name).onSnapshot((snap) => {
+      state[name] = snap.docs.filter((d) => d.exists).map((d) => ({ ...d.data(), id: d.id })).sort(byCreated);
+      loaded.add(name);
+      if (loaded.size === 3) onData();
+    }, (err) => {
+      if (err && err.code === 'revoked') { toast('Access to these lists changed. Reload the page to continue.'); return; }
+      setTimeout(() => subscribe(name), 3000);
+    });
+  }
+
+  // One write at a time per document, retry once on a transient error.
+  const queues = new Map();
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  function write(key, fn) {
+    if (store.readOnly) { toast(READ_ONLY); return Promise.resolve(false); }
+    const run = async () => {
+      try { await fn(); } catch (err) {
+        if (err && err.code === 'unavailable') { await sleep(400 + Math.random() * 600); await fn(); } else throw err;
+      }
+    };
+    const next = (queues.get(key) || Promise.resolve()).then(run).then(() => true, (err) => { writeFailed(err); return false; });
+    queues.set(key, next);
+    return next;
+  }
+  function writeFailed(err) {
+    const code = err && err.code;
+    if (code === 'invalid_argument' || code === 'not_granted') {
+      store.readOnly = true;
+      render();
+      toast(READ_ONLY);
+    } else if (code === 'quota_exceeded') {
+      toast('Storage is full. Delete some finished tasks to make room.');
+    } else if (code === 'revoked') {
+      toast('Access to these lists changed. Reload the page to continue.');
+    } else {
+      toast('Couldn’t save that. Check your connection and try again.');
+    }
+  }
+  const docRef = (col, id) => store.db.collection(col).doc(id);
+
+  // ---- helpers -----------------------------------------------------------------------
+  const $ = (s) => document.querySelector(s);
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function h(tag, attrs, ...kids) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v === undefined || v === null || v === false) continue;
+      if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else if (k === 'class') el.className = v;
+      else el.setAttribute(k, v === true ? '' : v);
+    }
+    for (const c of kids.flat()) if (c != null && c !== false) el.append(c);
+    return el;
+  }
+  function svg(tag, attrs, ...kids) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else if (v != null) el.setAttribute(k, v);
+    }
+    for (const c of kids.flat()) if (c != null) el.append(c);
+    return el;
+  }
+  const fmt = (n) => (n == null ? '–' : Number.isInteger(n) ? String(n) : n.toFixed(1));
+  const money = (a) => (a == null ? '' : '€' + a.toLocaleString(undefined, { maximumFractionDigits: 2 }));
+  const costColor = (c) => (c == null ? 'var(--unscored)' : `var(--cost-${Math.min(5, Math.max(1, Math.round(c)))})`);
+  const memberName = (id) => (state.members.find((m) => m.id === id) || {}).name || 'Someone';
+  let toastTimer;
+  function toast(msg) {
+    const el = $('#toast');
+    el.textContent = msg;
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.hidden = true; }, 4000);
+  }
+  function showScreen(name) {
+    for (const id of ['loading', 'nodb', 'whoami', 'app']) $('#' + id).hidden = id !== name;
+  }
+  const currentList = () => state.lists.find((l) => l.id === ui.listId) || state.lists[0] || null;
+  function visibleItems() {
+    const list = currentList();
+    return list ? state.items.filter((i) => i.listId === list.id && (ui.showDone || !i.done)) : [];
+  }
+
+  // In-page replacement for prompt()/confirm(), which artifacts don't show.
+  function ask({ title, text = '', input = null, actions }) {
+    const dlg = $('#ask');
+    $('#ask-title').textContent = title;
+    $('#ask-text').textContent = text;
+    $('#ask-text').hidden = !text;
+    const field = $('#ask-input');
+    field.hidden = input === null;
+    field.required = input !== null;
+    field.value = input || '';
+    $('#ask-actions').replaceChildren(...actions.map((a) =>
+      h('button', { value: a.value, class: a.kind || '', formnovalidate: a.value === 'cancel' || a.kind === 'danger' }, a.label)));
+    return new Promise((resolve) => {
+      dlg.addEventListener('close', () => resolve({ action: dlg.returnValue || 'cancel', value: field.value.trim() }), { once: true });
+      dlg.returnValue = '';
+      dlg.showModal();
+      if (input !== null) { field.focus(); field.select(); }
+    });
+  }
+
+  // ---- rendering ---------------------------------------------------------------------
+  function onData() {
+    if (!state.members.some((m) => m.id === ui.me) && store.userId) {
+      const mine = state.members.find((m) => m.userId === store.userId);
+      if (mine) setMe(mine.id, false);
+    }
+    render();
+  }
+
+  function render() {
+    const needsMe = !store.readOnly && !state.members.some((m) => m.id === ui.me);
+    if (needsMe) { renderWhoAmI(); showScreen('whoami'); return; }
+    showScreen('app');
+    $('#me-chip').textContent = state.members.some((m) => m.id === ui.me) ? memberName(ui.me) : 'Viewing';
+    $('#readonly-banner').hidden = !store.readOnly;
+    $('#add-item-form').hidden = store.readOnly;
+    $('#first-list-form').hidden = store.readOnly;
+
+    const list = currentList();
+    if (list && list.id !== ui.listId) { ui.listId = list.id; prefs.set('listId', list.id); }
+    renderTabs();
+    $('#empty-lists').hidden = Boolean(list);
+    $('#list-view').hidden = !list;
+    if (!list) { renderDialog(); return; }
+    renderControls();
+    renderBanner();
+    $('#matrix-panel').hidden = ui.view !== 'matrix';
+    $('#ranked-panel').hidden = ui.view !== 'ranked';
+    if (ui.view === 'matrix') renderMatrix(); else renderRanked();
+    renderDialog();
+  }
+
+  function renderWhoAmI() {
+    $('#member-buttons').replaceChildren(...state.members.map((m) =>
+      h('button', { type: 'button', class: 'big', onclick: () => chooseMember(m) }, 'I’m ' + m.name)));
+    const input = $('#member-name');
+    if (!input.value && store.suggestedName && !state.members.some((m) => m.name.toLowerCase() === store.suggestedName.toLowerCase())) {
+      input.value = store.suggestedName;
+    }
+  }
+
+  function setMe(id, rerender = true) {
+    ui.me = id;
+    prefs.set('me', id);
+    if (rerender) render();
+  }
+
+  function chooseMember(m) {
+    setMe(m.id);
+    // Remember this login for next time, on any device.
+    if (store.userId && !m.userId) write('members/' + m.id, () => docRef('members', m.id).update({ userId: store.userId }));
+  }
+
+  function renderTabs() {
+    const tabs = state.lists.map((list) => {
+      const active = list.id === ui.listId;
+      const open = state.items.filter((i) => i.listId === list.id && !i.done).length;
+      return h('div', { class: 'tab' + (active ? ' active' : '') },
+        h('button', { type: 'button', class: 'tab-name', onclick: () => selectList(list.id) }, list.name, h('span', { class: 'count' }, String(open))),
+        active && !store.readOnly && h('button', { type: 'button', class: 'tab-menu', 'aria-label': 'Rename or delete list', title: 'Rename or delete list', onclick: () => listMenu(list) }, '⋯'));
+    });
+    if (!store.readOnly) tabs.push(h('button', { type: 'button', class: 'tab-add', 'aria-label': 'New list', title: 'New list', onclick: newList }, '+'));
+    $('#list-tabs').replaceChildren(...tabs);
+  }
+
+  function renderControls() {
+    for (const b of $('#view-toggle').children) {
+      b.classList.toggle('on', b.dataset.value === ui.view);
+      b.setAttribute('aria-selected', String(b.dataset.value === ui.view));
+    }
+    const opts = [['combined', 'Combined'], ...state.members.map((m) => [m.id, m.id === ui.me ? `Mine (${m.name})` : m.name])];
+    const sel = $('#score-view');
+    sel.replaceChildren(...opts.map(([v, l]) => h('option', { value: v }, l)));
+    if (!opts.some(([v]) => v === ui.scoreView)) ui.scoreView = 'combined';
+    sel.value = ui.scoreView;
+    $('#x-axis').value = ui.xAxis;
+    $('#cost-weight').value = Math.round(ui.costWeight * 100);
+    $('#cost-weight-out').textContent = Math.round(ui.costWeight * 100) + '%';
+    $('#show-done').checked = ui.showDone;
+  }
+
+  function renderBanner() {
+    const items = visibleItems().filter((i) => !i.done);
+    const mine = ui.me ? items.filter((i) => missingScorers(i, [ui.me]).length) : [];
+    const debates = items.filter((i) => disagreement(i) >= 2);
+    const parts = [];
+    if (mine.length) parts.push(h('button', { type: 'button', class: 'link', onclick: () => openItem(mine[0].id) }, `${mine.length} task${mine.length > 1 ? 's need' : ' needs'} your scores`));
+    if (debates.length) parts.push(h('button', { type: 'button', class: 'link', onclick: () => openItem(debates[0].id) }, `${debates.length} to talk about (you scored very differently)`));
+    const el = $('#todo-banner');
+    el.hidden = !parts.length;
+    el.replaceChildren(...parts.flatMap((p, i) => (i ? [' · ', p] : [p])));
+  }
+
+  function renderMatrix() {
+    const box = $('#matrix');
+    const W = Math.max(box.clientWidth || 320, 280);
+    const H = Math.round(Math.min(Math.max(W * (W < 600 ? 1.15 : 0.72), 340), 640));
+    const m = { top: 16, right: 16, bottom: 44, left: 44 };
+    const pw = W - m.left - m.right, ph = H - m.top - m.bottom;
+    const sx = (v) => m.left + ((v - 0.5) / 5) * pw;
+    const sy = (v) => m.top + (1 - (v - 0.5) / 5) * ph;
+    const axisName = { effort: 'Effort', cost: 'Cost', blend: 'Effort + cost' }[ui.xAxis];
+    const root = svg('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img', 'aria-label': `Impact against ${axisName}` });
+
+    const midX = sx(MIDPOINT), midY = sy(MIDPOINT);
+    const quads = [
+      ['quickWin', m.left, m.top, midX - m.left, midY - m.top, 'start'],
+      ['bigProject', midX, m.top, W - m.right - midX, midY - m.top, 'end'],
+      ['fillIn', m.left, midY, midX - m.left, H - m.bottom - midY, 'start'],
+      ['timeSink', midX, midY, W - m.right - midX, H - m.bottom - midY, 'end'],
+    ];
+    for (const [key, x, y, w, hh, anchor] of quads) {
+      root.append(svg('rect', { x, y, width: w, height: hh, style: `fill:var(--q-${key})` }));
+      const tx = anchor === 'start' ? x + 8 : x + w - 8;
+      root.append(svg('text', { x: tx, y: y + 18, 'text-anchor': anchor, class: 'quad-label' }, QUADRANTS[key].name));
+      root.append(svg('text', { x: tx, y: y + 32, 'text-anchor': anchor, class: 'quad-hint' }, QUADRANTS[key].hint));
+    }
+    for (let v = 1; v <= 5; v++) {
+      root.append(svg('line', { x1: sx(v), x2: sx(v), y1: m.top, y2: H - m.bottom, class: 'grid' }));
+      root.append(svg('line', { x1: m.left, x2: W - m.right, y1: sy(v), y2: sy(v), class: 'grid' }));
+      root.append(svg('text', { x: sx(v), y: H - m.bottom + 16, 'text-anchor': 'middle', class: 'tick' }, String(v)));
+      root.append(svg('text', { x: m.left - 10, y: sy(v) + 4, 'text-anchor': 'end', class: 'tick' }, String(v)));
+    }
+    root.append(svg('text', { x: m.left + pw / 2, y: H - 6, 'text-anchor': 'middle', class: 'axis-label' }, axisName + ' →'));
+    root.append(svg('text', { x: 14, y: m.top + ph / 2, 'text-anchor': 'middle', class: 'axis-label', transform: `rotate(-90 14 ${m.top + ph / 2})` }, 'Impact →'));
+
+    const placed = [], unscored = [];
+    for (const item of visibleItems()) {
+      const s = scoresFor(item, ui.scoreView);
+      const x = xValue(s, ui.xAxis, ui.costWeight);
+      if (s.impact == null || x == null) unscored.push(item); else placed.push({ item, s, x, y: s.impact });
+    }
+    const buckets = new Map();
+    for (const p of placed) {
+      const k = p.x.toFixed(2) + '|' + p.y.toFixed(2);
+      if (!buckets.has(k)) buckets.set(k, []);
+      buckets.get(k).push(p);
+    }
+    const sizeDim = ui.xAxis === 'cost' ? 'effort' : 'cost';
+    const dots = [];
+    for (const group of buckets.values()) {
+      group.forEach((p, i) => {
+        const spread = group.length > 1 ? 16 + group.length * 2 : 0;
+        const a = (i / group.length) * Math.PI * 2 - Math.PI / 2;
+        const size = p.s[sizeDim];
+        dots.push({ ...p, cx: sx(p.x) + Math.cos(a) * spread, cy: sy(p.y) + Math.sin(a) * spread, r: size == null ? 7 : 6 + size * 2.5 });
+      });
+    }
+
+    // Put each label where it overlaps least with bubbles, other labels and quadrant captions.
+    const maxChars = W < 600 ? 16 : 22;
+    for (const d of dots) d.box = { x1: d.cx - d.r, y1: d.cy - d.r, x2: d.cx + d.r, y2: d.cy + d.r };
+    const obstacles = [
+      ...quads.map(([, x, y, w, , anchor]) => (anchor === 'start' ? { x1: x, y1: y, x2: x + 150, y2: y + 36 } : { x1: x + w - 150, y1: y, x2: x + w, y2: y + 36 })),
+      ...dots.map((d) => d.box),
+    ];
+    const overlap = (a, b) => Math.max(0, Math.min(a.x2, b.x2) - Math.max(a.x1, b.x1)) * Math.max(0, Math.min(a.y2, b.y2) - Math.max(a.y1, b.y1));
+    for (const d of [...dots].sort((a, b) => b.r - a.r)) {
+      d.label = d.item.title.length > maxChars ? d.item.title.slice(0, maxChars - 1) + '…' : d.item.title;
+      const tw = d.label.length * 6.6;
+      const options = [
+        { x: d.cx + d.r + 4, y: d.cy + 4, anchor: 'start' },
+        { x: d.cx - d.r - 4, y: d.cy + 4, anchor: 'end' },
+        { x: d.cx, y: d.cy - d.r - 6, anchor: 'middle' },
+        { x: d.cx, y: d.cy + d.r + 14, anchor: 'middle' },
+      ].map((c) => {
+        const x1 = c.anchor === 'start' ? c.x : c.anchor === 'end' ? c.x - tw : c.x - tw / 2;
+        const b = { x1, x2: x1 + tw, y1: c.y - 11, y2: c.y + 3 };
+        const outside = Math.max(0, m.left - b.x1) + Math.max(0, b.x2 - (W - m.right));
+        return { ...c, box: b, cost: obstacles.reduce((sum, o) => sum + (o === d.box ? 0 : overlap(b, o)), 0) + outside * 50 };
+      });
+      d.labelPos = options.reduce((a, b) => (b.cost < a.cost ? b : a));
+      obstacles.push(d.labelPos.box);
+    }
+    for (const { item, s, cx, cy, r, label, labelPos } of dots) {
+      const debate = disagreement(item) >= 2;
+      root.append(svg('g', {
+        class: 'dot' + (item.done ? ' done' : ''), tabindex: 0, role: 'button',
+        onclick: () => openItem(item.id),
+        onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openItem(item.id); } },
+      },
+      svg('title', {}, `${item.title}\nImpact ${fmt(s.impact)} · Effort ${fmt(s.effort)} · Cost ${fmt(s.cost)}${item.costAmount != null ? ` (${money(item.costAmount)})` : ''}`),
+      debate ? svg('circle', { cx, cy, r: r + 4, class: 'debate-ring' }) : null,
+      svg('circle', { cx, cy, r, style: `fill:${costColor(s.cost)}`, class: s.cost == null ? 'no-cost' : '' }),
+      svg('text', { x: labelPos.x, y: labelPos.y, 'text-anchor': labelPos.anchor, class: 'dot-label' }, label)));
+    }
+    if (!dots.length) {
+      root.append(svg('text', { x: m.left + pw / 2, y: m.top + ph / 2 + 4, 'text-anchor': 'middle', class: 'quad-hint' },
+        visibleItems().length ? 'Score a task to place it on the matrix' : 'Add a task above to get started'));
+    }
+    box.replaceChildren(root);
+
+    $('#legend').replaceChildren(
+      h('span', {}, 'Bubble size: ' + sizeDim),
+      h('span', {}, 'Colour: cost ', ...[1, 2, 3, 4, 5].map((c) => h('i', { style: `background:${costColor(c)}`, title: LABELS.cost[c - 1] })), h('i', { style: 'background:var(--unscored)', title: 'Not scored' })),
+      h('span', {}, h('i', { class: 'ring-sample' }), ' you disagree'));
+    $('#unscored').replaceChildren(...(unscored.length ? [
+      h('h3', {}, 'Not scored yet' + (ui.scoreView === 'combined' ? '' : ' by ' + memberName(ui.scoreView))),
+      h('div', { class: 'pills' }, unscored.map((it) => h('button', { type: 'button', class: 'pill', onclick: () => openItem(it.id) }, it.title))),
+    ] : []));
+  }
+
+  function renderRanked() {
+    const ranked = rankItems(visibleItems(), ui.scoreView, ui.costWeight);
+    const ol = $('#ranked');
+    if (!ranked.length) { ol.replaceChildren(h('li', { class: 'empty muted' }, 'Nothing here yet. Add a task above.')); return; }
+    const ids = state.members.map((mm) => mm.id);
+    ol.replaceChildren(...ranked.map(({ item, scores, priority: p }) => {
+      const q = quadrant(scores, ui.xAxis, ui.costWeight);
+      const missing = missingScorers(item, ids);
+      return h('li', { class: 'row-item' + (item.done ? ' done' : '') },
+        h('input', { type: 'checkbox', checked: item.done, disabled: store.readOnly, 'aria-label': 'Done', onchange: (e) => setDone(item, e.target.checked) }),
+        h('button', { type: 'button', class: 'row-main', onclick: () => openItem(item.id) },
+          h('span', { class: 'row-title' }, item.title),
+          h('span', { class: 'row-meta' },
+            q && h('span', { class: 'tag q-' + q }, QUADRANTS[q].name),
+            h('span', {}, `I ${fmt(scores.impact)} · E ${fmt(scores.effort)} · C ${fmt(scores.cost)}`),
+            item.costAmount != null && h('span', {}, money(item.costAmount)),
+            disagreement(item) >= 2 && h('span', { class: 'tag debate' }, 'talk about it'),
+            missing.length > 0 && h('span', { class: 'tag waiting' }, 'waiting on ' + missing.map(memberName).join(' & ')))),
+        h('span', { class: 'score', title: 'Priority: impact ÷ (effort/cost blend)' }, p == null ? '–' : p.toFixed(1) + '×'));
+    }));
+  }
+
+  // ---- item dialog ---------------------------------------------------------------------
+  function openItem(id) {
+    const item = state.items.find((i) => i.id === id);
+    if (!item) return;
+    ui.openItemId = id;
+    $('#item-title').value = item.title;
+    $('#item-notes').value = item.notes || '';
+    $('#item-cost').value = item.costAmount == null ? '' : item.costAmount;
+    $('#item-list').replaceChildren(...state.lists.map((l) => h('option', { value: l.id }, l.name)));
+    $('#item-list').value = item.listId;
+    renderDialog();
+    const dlg = $('#item-dialog');
+    if (!dlg.open) dlg.showModal();
+  }
+
+  function renderDialog() {
+    const dlg = $('#item-dialog');
+    if (!ui.openItemId) return;
+    const item = state.items.find((i) => i.id === ui.openItemId);
+    if (!item) {
+      if (dlg.open) { dlg.close(); toast('That task was deleted.'); }
+      ui.openItemId = null;
+      return;
+    }
+    $('#item-fields').disabled = store.readOnly;
+    $('#item-title').disabled = store.readOnly;
+    const mine = (ui.me && (item.scores || {})[ui.me]) || {};
+    $('#my-scores').replaceChildren(...(ui.me ? [
+      h('h3', {}, 'Your scores'),
+      ...DIMENSIONS.map((dim) => h('div', { class: 'score-row' },
+        h('span', { class: 'dim' }, dim[0].toUpperCase() + dim.slice(1)),
+        h('div', { class: 'pips dim-' + dim, role: 'radiogroup', 'aria-label': dim },
+          [1, 2, 3, 4, 5].map((v) => h('button', {
+            type: 'button', role: 'radio', 'aria-checked': String(mine[dim] === v), class: mine[dim] === v ? 'on' : '',
+            title: LABELS[dim][v - 1], onclick: () => setScore(item, dim, mine[dim] === v ? null : v),
+          }, String(v)))),
+        h('span', { class: 'pip-label muted' }, Number.isFinite(mine[dim]) ? LABELS[dim][mine[dim] - 1] : 'not set'))),
+    ] : []));
+
+    const lines = state.members.filter((mm) => mm.id !== ui.me).map((mm) => {
+      const s = (item.scores || {})[mm.id];
+      const scored = s && DIMENSIONS.some((d) => Number.isFinite(s[d]));
+      return h('p', {}, h('strong', {}, mm.name), ': ', scored ? DIMENSIONS.map((d) => `${d} ${fmt(Number.isFinite(s[d]) ? s[d] : null)}`).join(' · ') : 'hasn’t scored yet');
+    });
+    const c = scoresFor(item, 'combined');
+    const p = priority(c, ui.costWeight);
+    const q = quadrant(c, ui.xAxis, ui.costWeight);
+    lines.push(h('p', { class: 'muted' }, `Combined: impact ${fmt(c.impact)} · effort ${fmt(c.effort)} · cost ${fmt(c.cost)}`,
+      p != null ? ` → ${p.toFixed(1)}× priority` : '', q ? ' · ' + QUADRANTS[q].name : ''));
+    if (disagreement(item) >= 2) lines.push(h('p', { class: 'tag debate' }, 'You scored this quite differently. Worth a chat.'));
+    $('#other-scores').replaceChildren(...lines);
+
+    const t = $('#toggle-done');
+    t.textContent = item.done ? 'Mark not done' : 'Mark done ✓';
+    t.className = item.done ? '' : 'primary';
+  }
+
+  // ---- writes ----------------------------------------------------------------------------
+  function patchItem(item, patch) {
+    return write('items/' + item.id, () => docRef('items', item.id).update({ ...patch, updatedAt: now() }));
+  }
+  function setScore(item, dim, value) {
+    if (!ui.me) return;
+    patchItem(item, { scores: { [ui.me]: { [dim]: value } } });
+  }
+  function setDone(item, done) {
+    patchItem(item, { done, doneAt: done ? now() : null });
+  }
+  function saveField(field, raw) {
+    const item = state.items.find((i) => i.id === ui.openItemId);
+    if (!item) return;
+    let value = raw;
+    if (field === 'title') {
+      value = raw.trim().slice(0, 200);
+      if (!value) { $('#item-title').value = item.title; toast('A task needs a title.'); return; }
+    } else if (field === 'notes') {
+      value = raw.slice(0, 2000);
+    } else if (field === 'costAmount') {
+      if (raw === '') value = null;
+      else {
+        const n = Number(raw);
+        if (!Number.isFinite(n) || n < 0) { toast('Enter the estimated cost as a positive number.'); return; }
+        value = Math.round(n * 100) / 100;
+      }
+    }
+    if ((item[field] ?? (field === 'costAmount' ? null : '')) === value) return;
+    patchItem(item, { [field]: value });
+  }
+
+  function selectList(id) {
+    ui.listId = id;
+    prefs.set('listId', id);
+    render();
+  }
+  async function createList(name) {
+    name = name.trim().slice(0, 60);
+    if (!name) return;
+    const ref = store.db.collection('lists').doc();
+    const body = { name, createdAt: now() };
+    if (await write('lists/' + ref.id, () => ref.set(body))) {
+      if (!state.lists.some((l) => l.id === ref.id)) state.lists = [...state.lists, { ...body, id: ref.id }];
+      selectList(ref.id);
+    }
+  }
+  async function newList() {
+    const r = await ask({ title: 'New list', input: '', actions: [{ value: 'ok', label: 'Create', kind: 'primary' }, { value: 'cancel', label: 'Cancel' }] });
+    if (r.action === 'ok') createList(r.value);
+  }
+  async function listMenu(list) {
+    const r = await ask({
+      title: 'Rename list', input: list.name,
+      actions: [{ value: 'ok', label: 'Save', kind: 'primary' }, { value: 'cancel', label: 'Cancel' }, { value: 'delete', label: 'Delete list', kind: 'danger' }],
+    });
+    if (r.action === 'ok' && r.value && r.value !== list.name) {
+      write('lists/' + list.id, () => docRef('lists', list.id).update({ name: r.value.slice(0, 60) }));
+    } else if (r.action === 'delete') {
+      const tasks = state.items.filter((i) => i.listId === list.id);
+      const c = await ask({
+        title: `Delete “${list.name}”?`,
+        text: tasks.length ? `This also deletes its ${tasks.length} task${tasks.length > 1 ? 's' : ''}. You can’t undo this.` : 'You can’t undo this.',
+        actions: [{ value: 'delete', label: 'Delete', kind: 'primary' }, { value: 'cancel', label: 'Keep it' }],
+      });
+      if (c.action !== 'delete') return;
+      for (const t of tasks) await write('items/' + t.id, () => docRef('items', t.id).delete());
+      await write('lists/' + list.id, () => docRef('lists', list.id).delete());
+    }
+  }
+
+  async function addMember(name) {
+    name = name.trim().slice(0, 60);
+    if (!name) return;
+    const existing = state.members.find((m) => m.name.toLowerCase() === name.toLowerCase());
+    if (existing) { chooseMember(existing); return; }
+    const ref = store.db.collection('members').doc();
+    const body = { name, userId: store.userId, createdAt: now() };
+    if (await write('members/' + ref.id, () => ref.set(body))) {
+      if (!state.members.some((m) => m.id === ref.id)) state.members = [...state.members, { ...body, id: ref.id }];
+      $('#member-name').value = '';
+      setMe(ref.id);
+    }
+  }
+
+  // ---- wiring ----------------------------------------------------------------------------
+  function bind() {
+    $('#member-form').addEventListener('submit', (e) => { e.preventDefault(); addMember($('#member-name').value); });
+    $('#me-chip').addEventListener('click', () => { if (!store.readOnly) { ui.me = null; prefs.set('me', null); render(); } });
+    $('#first-list-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      createList($('#first-list-name').value);
+      $('#first-list-name').value = '';
+    });
+    $('#add-item-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = $('#add-item-title').value.trim().slice(0, 200);
+      const list = currentList();
+      if (!title || !list) return;
+      const ref = store.db.collection('items').doc();
+      const t = now();
+      const body = { listId: list.id, title, notes: '', costAmount: null, done: false, doneAt: null, createdBy: ui.me, createdAt: t, updatedAt: t, scores: {} };
+      if (await write('items/' + ref.id, () => ref.set(body))) {
+        $('#add-item-title').value = '';
+        if (!state.items.some((i) => i.id === ref.id)) state.items = [...state.items, { ...body, id: ref.id }];
+        render();
+        openItem(ref.id);
+      }
+    });
+    $('#view-toggle').addEventListener('click', (e) => {
+      const v = e.target.closest('button') && e.target.closest('button').dataset.value;
+      if (!v) return;
+      ui.view = v; prefs.set('view', v); render();
+    });
+    const onPref = (sel, key, read) => $(sel).addEventListener('input', (e) => { ui[key] = read(e.target); prefs.set(key, ui[key]); render(); });
+    onPref('#score-view', 'scoreView', (t) => t.value);
+    onPref('#x-axis', 'xAxis', (t) => t.value);
+    onPref('#cost-weight', 'costWeight', (t) => Number(t.value) / 100);
+    onPref('#show-done', 'showDone', (t) => t.checked);
+
+    const fields = { title: '#item-title', notes: '#item-notes', costAmount: '#item-cost', listId: '#item-list' };
+    for (const [field, sel] of Object.entries(fields)) $(sel).addEventListener('change', (e) => saveField(field, e.target.value));
+    $('#toggle-done').addEventListener('click', () => {
+      const item = state.items.find((i) => i.id === ui.openItemId);
+      if (item) setDone(item, !item.done);
+    });
+    $('#delete-item').addEventListener('click', async () => {
+      const item = state.items.find((i) => i.id === ui.openItemId);
+      if (!item) return;
+      $('#item-dialog').close();
+      const r = await ask({ title: `Delete “${item.title}”?`, text: 'You can’t undo this.', actions: [{ value: 'delete', label: 'Delete', kind: 'primary' }, { value: 'cancel', label: 'Keep it' }] });
+      if (r.action === 'delete') write('items/' + item.id, () => docRef('items', item.id).delete());
+      else openItem(item.id);
+    });
+    $('#item-dialog').addEventListener('close', () => {
+      // Save the field that still has focus (e.g. closed with Escape) before forgetting the item.
+      const a = document.activeElement;
+      if (a && a.form === $('#item-form') && a.name) a.dispatchEvent(new Event('change'));
+      ui.openItemId = null;
+    });
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => { if (ui.view === 'matrix' && !$('#list-view').hidden) renderMatrix(); }, 150);
+    });
+  }
+
+  async function start() {
+    bind();
+    const claude = window.claude;
+    const [db, user] = claude && claude.use ? await Promise.all([claude.use('db'), claude.use('user')]) : [null, null];
+    if (!db) { showScreen('nodb'); return; }
+    store.db = db;
+    if (user) {
+      const [id, canWrite, name] = await Promise.all([user.id(), user.can('data.write'), user.name()]);
+      store.userId = id;
+      store.readOnly = canWrite === false;
+      store.suggestedName = (name || '').split(' ')[0];
+    }
+    ['members', 'lists', 'items'].forEach(subscribe);
+  }
+
+  start().catch(() => showScreen('nodb'));
+})();
+</script>

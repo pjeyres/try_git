@@ -31,7 +31,14 @@ You can also note an estimated cost in money (€ by default).
 - Calm Japandi styling (linen, ink and earth tones) that works on phones, has a dark mode
   and can be added to the home screen.
 
-## Running it
+## Hosted on claude.ai (no server needed)
+
+`artifact/impact-matrix.html` is the same app as a single claude.ai Artifact page. Your lists
+are kept in the artifact's shared database, and each person is recognised by their Claude
+login. Share it by email with **Editor** access, and don't also turn on a public link:
+people invited from outside your account can only make changes while there is no public link.
+
+## Running it yourself
 
 Requires Node.js 18+. There are no dependencies to install.
 

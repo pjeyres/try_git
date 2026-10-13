@@ -11,7 +11,7 @@ Each task gets three 1–5 scores **from each of you**:
 
 You can also note an estimated cost in money (€ by default).
 
-<img src="docs/desktop-matrix.png" alt="Matrix view on desktop" width="640"> <img src="docs/mobile-matrix.png" alt="Matrix view on a phone" width="200">
+<img src="docs/desktop-matrix.png" alt="Matrix view on desktop" width="640"> <img src="docs/mobile-matrix.png" alt="Matrix view on a phone" width="200"> <img src="docs/mobile-dark.png" alt="Matrix view on a phone in dark mode" width="200">
 
 ## What you get
 
@@ -28,7 +28,8 @@ You can also note an estimated cost in money (€ by default).
   differ by 2 or more (a dashed pink ring marks them as worth talking about).
 - **Several lists** (House, Garden, Holiday…) with live sync: a change on one phone shows up
   on the other right away.
-- Works on phones, has dark mode and can be added to the home screen.
+- Calm Japandi styling (linen, ink and earth tones) that works on phones, has a dark mode
+  and can be added to the home screen.
 
 ## Running it
 

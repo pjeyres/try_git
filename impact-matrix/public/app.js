@@ -116,9 +116,8 @@ function money(amount) {
 
 function costColor(cost) {
   if (cost == null) return 'var(--unscored)';
-  // green (cheap) → amber → red (expensive)
-  const hue = 140 - ((cost - 1) / 4) * 135;
-  return `hsl(${hue} 70% 45%)`;
+  // Earth tones from sage (cheap) to terracotta (expensive); averages round.
+  return `var(--cost-${Math.min(5, Math.max(1, Math.round(cost)))})`;
 }
 
 let toastTimer;

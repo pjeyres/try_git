@@ -1,0 +1,9 @@
+{
+  "name": "Impact Matrix",
+  "short_name": "Matrix",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#4f46e5",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

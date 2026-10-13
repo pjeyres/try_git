@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Impact Matrix</title>
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Passcode gate (only when APP_PASSCODE is set on the server) -->
+  <section id="login" class="screen" hidden>
+    <form class="card narrow" id="login-form">
+      <h1>Impact Matrix</h1>
+      <p class="muted">Enter your shared passcode.</p>
+      <input type="password" name="passcode" placeholder="Passcode" autocomplete="current-password" required>
+      <button class="primary" type="submit">Unlock</button>
+      <p class="error" id="login-error" hidden></p>
+    </form>
+  </section>
+
+  <!-- Who is using this device? -->
+  <section id="whoami" class="screen" hidden>
+    <div class="card narrow">
+      <h1>Who’s this?</h1>
+      <p class="muted">Each of you scores tasks separately, so we need to know who’s on this device.</p>
+      <div id="member-buttons" class="stack"></div>
+      <form id="member-form" class="row">
+        <input name="name" placeholder="Your name" maxlength="60" required>
+        <button class="primary" type="submit">Add me</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="app" hidden>
+    <header class="topbar">
+      <h1 class="brand">Impact Matrix</h1>
+      <nav id="list-tabs" class="tabs" aria-label="Lists"></nav>
+      <button id="me-chip" class="chip" title="Switch person"></button>
+    </header>
+
+    <main>
+      <div id="empty-lists" class="card narrow" hidden>
+        <h2>Start your first list</h2>
+        <p class="muted">For example “House”, “Garden” or “Holiday planning”.</p>
+        <form id="first-list-form" class="row">
+          <input name="name" placeholder="List name" maxlength="60" required>
+          <button class="primary" type="submit">Create</button>
+        </form>
+      </div>
+
+      <div id="list-view" hidden>
+        <form id="add-item-form" class="add-item">
+          <input name="title" placeholder="Add a task…" maxlength="200" required autocomplete="off">
+          <button class="primary" type="submit">Add</button>
+        </form>
+
+        <div class="toolbar">
+          <div class="segmented" id="view-toggle" role="tablist">
+            <button data-value="matrix" role="tab">Matrix</button>
+            <button data-value="ranked" role="tab">Ranked</button>
+          </div>
+          <label class="control">Scores
+            <select id="score-view"></select>
+          </label>
+          <label class="control">Across
+            <select id="x-axis">
+              <option value="effort">Effort</option>
+              <option value="cost">Cost</option>
+              <option value="blend">Effort + cost</option>
+            </select>
+          </label>
+          <label class="control" title="How much cost matters versus effort when ranking">Cost weight
+            <input type="range" id="cost-weight" min="0" max="100" step="10">
+            <output id="cost-weight-out"></output>
+          </label>
+          <label class="control check"><input type="checkbox" id="show-done"> Show done</label>
+        </div>
+
+        <div id="todo-banner" class="banner" hidden></div>
+
+        <section id="matrix-panel">
+          <div id="matrix" class="matrix"></div>
+          <div class="legend" id="legend"></div>
+          <div id="unscored" class="unscored"></div>
+        </section>
+
+        <section id="ranked-panel" hidden>
+          <ol id="ranked" class="ranked"></ol>
+        </section>
+      </div>
+    </main>
+  </section>
+
+  <dialog id="item-dialog">
+    <form method="dialog" id="item-form">
+      <div class="dialog-head">
+        <input name="title" class="title-input" maxlength="200" required aria-label="Title">
+        <button value="close" class="icon" aria-label="Close">✕</button>
+      </div>
+
+      <div id="my-scores" class="scores"></div>
+      <div id="other-scores" class="others"></div>
+
+      <label class="field">Estimated cost
+        <span class="money"><span id="currency"></span><input name="costAmount" type="number" min="0" step="any" inputmode="decimal" placeholder="optional"></span>
+      </label>
+      <label class="field">Notes
+        <textarea name="notes" rows="3" maxlength="2000" placeholder="Details, links, who’s doing it…"></textarea>
+      </label>
+      <label class="field">List
+        <select name="listId"></select>
+      </label>
+
+      <div class="dialog-foot">
+        <button type="button" id="delete-item" class="danger">Delete</button>
+        <button type="button" id="toggle-done"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

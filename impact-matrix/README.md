@@ -11,6 +11,8 @@ Each task gets three 1–5 scores **from each of you**:
 
 You can also note an estimated cost in money (€ by default).
 
+<img src="docs/desktop-matrix.png" alt="Matrix view on desktop" width="640"> <img src="docs/mobile-matrix.png" alt="Matrix view on a phone" width="200">
+
 ## What you get
 
 - **Matrix view**: impact on the vertical axis. The horizontal axis can be *Effort*, *Cost*

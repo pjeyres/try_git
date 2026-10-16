@@ -209,6 +209,20 @@ main > *, #list-view > * { min-width: 0; }
 .owners-pick button { border-radius: 999px; padding: .3rem .9rem; font-size: .9rem; background: none; color: var(--text); }
 .owners-pick button[aria-pressed="true"] { background: var(--sunken); border-color: var(--accent); font-weight: 500; }
 
+/* import */
+#import-form { display: grid; gap: .9rem; }
+#import-text { font-size: .95rem; }
+.file-pick { display: grid; gap: .3rem; font-size: .85rem; color: var(--muted); }
+.file-pick input { border: 0; padding: 0; background: none; font-size: .85rem; color: var(--text); }
+.import-summary { font-size: .85rem; color: var(--muted); }
+.import-preview { display: grid; gap: .35rem; max-height: 38vh; overflow: auto; }
+.import-row { display: flex; gap: .6rem; align-items: flex-start; padding: .45rem .65rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); }
+.import-row input { margin-top: .3rem; accent-color: var(--accent); flex: none; }
+.import-row .body { display: grid; min-width: 0; }
+.import-row .t { overflow-wrap: anywhere; }
+.import-row .m { font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
+.import-row.off .t { color: var(--muted); }
+
 /* dialogs */
 dialog {
   width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
@@ -315,6 +329,7 @@ dialog::backdrop { background: var(--scrim); }
           <input id="first-list-name" name="name" placeholder="Mission name" maxlength="60" required>
           <button class="primary" type="submit">Create</button>
         </form>
+        <button type="button" class="link open-import" style="justify-self:start">Or import tasks from a doc or spreadsheet</button>
       </div>
     </div>
 
@@ -322,6 +337,7 @@ dialog::backdrop { background: var(--scrim); }
       <form id="add-item-form" class="add-item">
         <input id="add-item-title" name="title" placeholder="Add a task…" maxlength="200" required autocomplete="off">
         <button class="primary" type="submit">Add</button>
+        <button type="button" class="open-import" title="Import tasks from a doc or spreadsheet">Import</button>
       </form>
 
       <div class="toolbar">
@@ -386,6 +402,30 @@ dialog::backdrop { background: var(--scrim); }
         <button type="button" id="toggle-done"></button>
       </div>
     </fieldset>
+  </form>
+</dialog>
+
+<dialog id="import-dialog" aria-labelledby="import-title">
+  <form method="dialog" id="import-form">
+    <div class="dialog-head">
+      <h2 id="import-title" style="flex:1">Import tasks</h2>
+      <button value="cancel" class="icon" aria-label="Close" formnovalidate>✕</button>
+    </div>
+    <p class="muted">Paste from a doc or note (one task per line), or rows copied from Google Sheets or Excel. Bullets and checkboxes are removed, amounts like €250 become the cost estimate, and columns named Task, Notes, Cost and Owner are recognised.</p>
+    <textarea id="import-text" rows="6" placeholder="Fix leaking tap €15&#10;• Repaint living room&#10;[ ] Clean gutters"></textarea>
+    <label class="file-pick">Or choose a file (.csv, .tsv, .txt or .md)
+      <input type="file" id="import-file" accept=".csv,.tsv,.txt,.md,text/plain,text/csv,text/tab-separated-values,text/markdown">
+    </label>
+    <label class="field">Into mission
+      <select id="import-mission"></select>
+    </label>
+    <input id="import-new-mission" placeholder="New mission name" maxlength="60" aria-label="New mission name" hidden>
+    <p id="import-summary" class="import-summary" aria-live="polite"></p>
+    <div id="import-preview" class="import-preview"></div>
+    <div class="dialog-foot">
+      <button value="cancel" formnovalidate>Cancel</button>
+      <button type="button" id="import-go" class="primary" disabled>Import</button>
+    </div>
   </form>
 </dialog>
 
@@ -559,7 +599,7 @@ dialog::backdrop { background: var(--scrim); }
     return el;
   }
   const fmt = (n) => (n == null ? '–' : Number.isInteger(n) ? String(n) : n.toFixed(1));
-  const money = (a) => (a == null ? '' : '€' + a.toLocaleString(undefined, { maximumFractionDigits: 2 }));
+  const money = (a) => (a == null ? '' : '€' + a.toLocaleString(undefined, Number.isInteger(a) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
   const costColor = (c) => (c == null ? 'var(--unscored)' : `var(--cost-${Math.min(5, Math.max(1, Math.round(c)))})`);
   const NEXT_UP_MAX = 3;
   const labelFor = (dim, v) => (v == null ? null : LABELS[dim][Math.min(5, Math.max(1, Math.round(v))) - 1]);
@@ -639,6 +679,7 @@ dialog::backdrop { background: var(--scrim); }
     $('#readonly-banner').hidden = !store.readOnly;
     $('#add-item-form').hidden = store.readOnly;
     $('#first-list-form').hidden = store.readOnly;
+    document.querySelectorAll('.open-import').forEach((b) => { b.hidden = store.readOnly; });
 
     const list = currentList();
     if (list && list.id !== ui.listId) { ui.listId = list.id; prefs.set('listId', list.id); }
@@ -998,15 +1039,18 @@ dialog::backdrop { background: var(--scrim); }
     prefs.set('listId', id);
     render();
   }
-  async function createList(name) {
+  async function addMission(name) {
     name = name.trim().slice(0, 60);
-    if (!name) return;
+    if (!name) return null;
     const ref = store.db.collection('lists').doc();
     const body = { name, createdAt: now() };
-    if (await write('lists/' + ref.id, () => ref.set(body))) {
-      if (!state.lists.some((l) => l.id === ref.id)) state.lists = [...state.lists, { ...body, id: ref.id }];
-      selectList(ref.id);
-    }
+    if (!(await write('lists/' + ref.id, () => ref.set(body)))) return null;
+    if (!state.lists.some((l) => l.id === ref.id)) state.lists = [...state.lists, { ...body, id: ref.id }];
+    return ref.id;
+  }
+  async function createList(name) {
+    const id = await addMission(name);
+    if (id) selectList(id);
   }
   async function newList() {
     const r = await ask({ title: 'New mission', input: '', actions: [{ value: 'ok', label: 'Create', kind: 'primary' }, { value: 'cancel', label: 'Cancel' }] });
@@ -1046,8 +1090,257 @@ dialog::backdrop { background: var(--scrim); }
     }
   }
 
+  // ---- import ------------------------------------------------------------------------------
+  const IMPORT_MAX = 200;
+  const HEADER_FIELDS = [
+    ['title', /^(tasks?|title|to ?dos?|items?|name|what|actions?|description|jobs?|taak|taken|klus|klussen|aufgaben?|t[aâ]ches?)$/],
+    ['notes', /^(notes?|details?|comments?|info|description|more|why|notities|opmerkingen?|notizen|bemerkungen?|remarques?)$/],
+    ['costAmount', /^(costs?|price|budget|amount|estimated? ?cost|cost estimate|€|eur|euros?|spend|kosten|prijs|bedrag|preis|betrag|co[uû]ts?|prix|montant)$/],
+    ['owners', /^(owners?|who|assigned ?to|assignee|person|responsible|wie|eigenaar|verantwoordelijke?|wer|zust[aä]ndig|besitzer|qui|responsable)$/],
+    ['done', /^(done|status|complete|completed|finished|klaar|gedaan|erledigt|fertig|fait|termin[eé])$/],
+  ];
+  const DONE_VALUE = /^(x|y|yes|done|true|complete|completed|finished|ja|klaar|gedaan|erledigt|fertig|oui|fait|✓|✔|☑|✅)$/i;
+  const MONEY = /(?:€\s?(\d[\d.,]*\d|\d)|(\d[\d.,]*\d|\d)\s?(?:€|eur(?:os?)?\b))/i;
+  const imp = { overrides: new Map(), rows: [], loadedText: null, delim: null };
+
+  function parseAmount(raw) {
+    let t = String(raw || '').replace(/[€\s]|eur(?:os?)?/gi, '');
+    if (!/^\d[\d.,]*$/.test(t)) return null;
+    const c = t.lastIndexOf(','), d = t.lastIndexOf('.');
+    if (c > -1 && d > -1) t = c > d ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '');
+    else if (c > -1) t = /^\d{1,3}(,\d{3})+$/.test(t) ? t.replace(/,/g, '') : t.replace(',', '.');
+    else if (d > -1 && /^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
+    const n = Number(t);
+    return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
+  }
+
+  // Strip bullets, numbering, checkboxes and markdown; pull out an inline € amount.
+  function cleanLine(line) {
+    let t = String(line || '').trim();
+    if (!t || /^#{1,6}\s/.test(t) || /^[^\w€]*$/.test(t)) return null;
+    let done = false;
+    for (let i = 0; i < 3; i++) {
+      const before = t;
+      t = t.replace(/^(?:[-*+•·▪◦‣–—>]\s+|\d{1,3}[.)]\s+)/, '');
+      t = t.replace(/^(?:\[([ xX✓✔])?\]|[☐☑☒✅✔✓□■])\s*/, (m, mark) => {
+        if ((mark && mark.trim()) || /[☑☒✅✔✓■]/.test(m)) done = true;
+        return '';
+      });
+      if (t === before) break;
+    }
+    if (/^~~.*~~$/.test(t)) { done = true; t = t.slice(2, -2); }
+    t = t.replace(/\*\*|__/g, '').trim();
+    if (!t || /:$/.test(t)) return null; // headings like "Garden:"
+    let costAmount = null;
+    const m = t.match(MONEY);
+    if (m) {
+      costAmount = parseAmount(m[1] || m[2]);
+      if (costAmount != null) t = t.replace(m[0], ' ').replace(/\(\s*\)/g, '');
+    }
+    t = t.replace(/\s{2,}/g, ' ').replace(/^[\s\-–—:|,]+|[\s\-–—:|,(]+$/g, '').trim();
+    return t ? { title: t.slice(0, 200), done, costAmount } : null;
+  }
+
+  function parseDelimited(text, delim) {
+    const rows = [];
+    let row = [], cell = '', quoted = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (quoted) {
+        if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else quoted = false; } else cell += ch;
+      } else if (ch === '"' && cell === '') quoted = true;
+      else if (ch === delim) { row.push(cell); cell = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i + 1] === '\n') i++;
+        row.push(cell); rows.push(row); row = []; cell = '';
+      } else cell += ch;
+    }
+    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+    return rows.map((r) => r.map((c) => c.trim())).filter((r) => r.some(Boolean));
+  }
+  function sniffDelim(text) {
+    const first = text.split(/\r?\n/).find((l) => l.trim()) || '';
+    const count = (ch) => first.split(ch).length - 1;
+    if (count('\t')) return '\t';
+    return count(';') > count(',') ? ';' : ',';
+  }
+
+  function matchOwners(raw) {
+    const ids = [], unknown = [];
+    for (const part of String(raw || '').split(/\s*(?:,|&|\/|\+|;|\band\b)\s*/i).map((x) => x.trim()).filter(Boolean)) {
+      const p = part.toLowerCase();
+      if (/^(both|us|all|everyone)$/.test(p)) { state.members.forEach((mm) => ids.push(mm.id)); continue; }
+      const mm = state.members.find((x) => x.name.toLowerCase() === p) || state.members.find((x) => x.name.toLowerCase().startsWith(p) || p.startsWith(x.name.toLowerCase()));
+      if (mm) ids.push(mm.id); else unknown.push(part);
+    }
+    return { ids: state.members.map((mm) => mm.id).filter((id) => ids.includes(id)), unknown };
+  }
+
+  // Turn pasted text or a file into candidate tasks.
+  function parseImport(text, forcedDelim) {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    const tabbed = lines.filter((l) => l.includes('\t')).length;
+    const delim = forcedDelim || (tabbed && tabbed >= lines.length / 2 ? '\t' : null);
+    const out = [];
+    if (!delim) {
+      for (const l of lines) { const c = cleanLine(l); if (c) out.push({ ...c, notes: '', owners: [] }); }
+      return out;
+    }
+    const table = parseDelimited(text, delim);
+    if (!table.length) return out;
+    const norm = (c) => c.toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-zà-ÿ€ ]/g, ' ').replace(/\s+/g, ' ').trim();
+    const map = {};
+    table[0].forEach((cell, i) => {
+      const n = norm(cell);
+      const hit = HEADER_FIELDS.find(([field, re]) => map[field] === undefined && re.test(n));
+      if (hit) map[hit[0]] = i;
+    });
+    const hasHeader = map.title !== undefined || Object.keys(map).length >= 2;
+    const header = hasHeader ? table[0] : [];
+    if (map.title === undefined) map.title = header.findIndex((_, i) => !Object.values(map).includes(i));
+    if (map.title < 0 || map.title === undefined) map.title = 0;
+    const used = new Set(Object.values(map));
+    for (const row of hasHeader ? table.slice(1) : table) {
+      const titleCell = row[map.title] || row.find(Boolean) || '';
+      const c = cleanLine(titleCell);
+      if (!c) continue;
+      const notes = [];
+      if (map.notes !== undefined && row[map.notes]) notes.push(row[map.notes]);
+      row.forEach((cell, i) => { if (cell && !used.has(i) && cell !== titleCell) notes.push(header[i] ? `${header[i]}: ${cell}` : cell); });
+      let costAmount = c.costAmount;
+      if (map.costAmount !== undefined && row[map.costAmount]) {
+        const a = parseAmount(row[map.costAmount]);
+        if (a != null) costAmount = a; else notes.push(`Cost: ${row[map.costAmount]}`);
+      }
+      let owners = [];
+      if (map.owners !== undefined && row[map.owners]) {
+        const o = matchOwners(row[map.owners]);
+        owners = o.ids;
+        if (o.unknown.length) notes.push(`Owner: ${o.unknown.join(', ')}`);
+      }
+      const done = c.done || (map.done !== undefined && DONE_VALUE.test(row[map.done] || ''));
+      out.push({ title: c.title, done, costAmount, owners, notes: notes.join(' · ').slice(0, 2000) });
+    }
+    return out;
+  }
+
+  function importTarget() {
+    const v = $('#import-mission').value;
+    return v === '__new' ? null : v;
+  }
+
+  function updateImportPreview() {
+    const text = $('#import-text').value;
+    const forced = imp.loadedText !== null && text === imp.loadedText ? imp.delim : null;
+    const parsed = parseImport(text, forced);
+    const target = importTarget();
+    const existing = new Set(state.items.filter((i) => i.listId === target).map((i) => i.title.toLowerCase()));
+    const seen = new Set();
+    imp.rows = parsed.slice(0, IMPORT_MAX).map((r) => {
+      const key = r.title.toLowerCase();
+      const why = existing.has(key) ? 'already in this mission' : seen.has(key) ? 'repeated' : r.done ? 'marked done' : '';
+      seen.add(key);
+      const include = imp.overrides.has(key + '|' + why) ? imp.overrides.get(key + '|' + why) : !why;
+      return { ...r, key: key + '|' + why, why, include };
+    });
+    renderImportPreview(parsed.length);
+  }
+
+  function renderImportPreview(totalFound) {
+    const chosen = imp.rows.filter((r) => r.include).length;
+    const skipped = imp.rows.length - chosen;
+    const summary = $('#import-summary');
+    summary.textContent = !imp.rows.length
+      ? ($('#import-text').value.trim() ? 'No tasks found yet. Put one task on each line.' : '')
+      : `${chosen} of ${imp.rows.length} task${imp.rows.length > 1 ? 's' : ''} selected` + (skipped ? ` · untick or tick to change` : '')
+        + (totalFound > IMPORT_MAX ? ` · only the first ${IMPORT_MAX} are shown` : '');
+    $('#import-preview').replaceChildren(...imp.rows.map((r) => {
+      const meta = [
+        r.costAmount != null && money(r.costAmount),
+        r.owners.length && (r.owners.length > 1 ? 'Owners ' : 'Owner ') + r.owners.map(memberName).join(' & '),
+        r.notes && (r.notes.length > 80 ? r.notes.slice(0, 79) + '…' : r.notes),
+        r.why && `Unticked: ${r.why}`,
+      ].filter(Boolean).join(' · ');
+      return h('label', { class: 'import-row' + (r.include ? '' : ' off') },
+        h('input', { type: 'checkbox', checked: r.include, onchange: (e) => { r.include = e.target.checked; imp.overrides.set(r.key, r.include); renderImportPreview(totalFound); } }),
+        h('span', { class: 'body' }, h('span', { class: 't' }, r.title), meta && h('span', { class: 'm' }, meta)));
+    }));
+    const go = $('#import-go');
+    go.disabled = !chosen;
+    go.textContent = chosen ? `Import ${chosen} task${chosen > 1 ? 's' : ''}` : 'Import';
+  }
+
+  function openImport() {
+    if (store.readOnly) { toast(READ_ONLY); return; }
+    imp.overrides.clear(); imp.rows = []; imp.loadedText = null; imp.delim = null;
+    $('#import-text').value = '';
+    $('#import-file').value = '';
+    const sel = $('#import-mission');
+    sel.replaceChildren(...state.lists.map((l) => h('option', { value: l.id }, l.name)), h('option', { value: '__new' }, 'New mission…'));
+    sel.value = currentList() ? currentList().id : '__new';
+    $('#import-new-mission').hidden = sel.value !== '__new';
+    $('#import-new-mission').value = '';
+    renderImportPreview(0);
+    $('#import-dialog').showModal();
+    $('#import-text').focus();
+  }
+
+  async function runImport() {
+    const rows = imp.rows.filter((r) => r.include);
+    if (!rows.length) return;
+    const go = $('#import-go');
+    go.disabled = true;
+    let listId = importTarget();
+    if (!listId) {
+      const name = $('#import-new-mission').value.trim();
+      if (!name) { toast('Name the new mission first.'); go.disabled = false; $('#import-new-mission').focus(); return; }
+      listId = await addMission(name);
+      if (!listId) { go.disabled = false; return; }
+    }
+    const base = Date.now();
+    let saved = 0;
+    for (const [i, r] of rows.entries()) {
+      go.textContent = `Importing ${i + 1} of ${rows.length}…`;
+      const ref = store.db.collection('items').doc();
+      const t = new Date(base + i).toISOString(); // keeps the pasted order
+      const body = { listId, title: r.title, notes: r.notes, costAmount: r.costAmount, done: false, doneAt: null, createdBy: ui.me, owners: r.owners, nextUpAt: null, createdAt: t, updatedAt: t, scores: {} };
+      if (!(await write('items/' + ref.id, () => ref.set(body)))) break;
+      if (!state.items.some((x) => x.id === ref.id)) state.items = [...state.items, { ...body, id: ref.id }];
+      saved++;
+    }
+    $('#import-dialog').close();
+    selectList(listId);
+    toast(saved === rows.length
+      ? `Imported ${saved} task${saved > 1 ? 's' : ''} into ${missionName(listId)}. Score them to place them on the matrix.`
+      : `Imported ${saved} of ${rows.length} tasks. The rest weren’t saved.`);
+  }
+
   // ---- wiring ----------------------------------------------------------------------------
   function bind() {
+    document.querySelectorAll('.open-import').forEach((b) => b.addEventListener('click', openImport));
+    let previewTimer;
+    $('#import-text').addEventListener('input', () => { clearTimeout(previewTimer); previewTimer = setTimeout(updateImportPreview, 150); });
+    $('#import-mission').addEventListener('change', () => {
+      $('#import-new-mission').hidden = $('#import-mission').value !== '__new';
+      updateImportPreview();
+    });
+    $('#import-file').addEventListener('change', async (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const ext = (f.name.split('.').pop() || '').toLowerCase();
+      if (!['csv', 'tsv', 'txt', 'md', 'markdown', 'text'].includes(ext)) {
+        toast('That file type can’t be read here. Open it, copy the rows or text, and paste them in.');
+        e.target.value = '';
+        return;
+      }
+      if (f.size > 1000000) { toast('That file is over 1 MB. Split it or paste part of it.'); e.target.value = ''; return; }
+      const text = await f.text();
+      imp.loadedText = text;
+      imp.delim = ext === 'tsv' ? '\t' : ext === 'csv' ? sniffDelim(text) : null;
+      $('#import-text').value = text;
+      updateImportPreview();
+    });
+    $('#import-go').addEventListener('click', runImport);
     $('#member-form').addEventListener('submit', (e) => { e.preventDefault(); addMember($('#member-name').value); });
     $('#me-chip').addEventListener('click', () => { if (!store.readOnly) { ui.me = null; prefs.set('me', null); render(); } });
     $('#first-list-form').addEventListener('submit', (e) => {

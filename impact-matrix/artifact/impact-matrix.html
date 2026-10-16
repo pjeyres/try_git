@@ -181,6 +181,34 @@ main > *, #list-view > * { min-width: 0; }
 .tag.waiting { border: 1px dashed var(--border); color: var(--muted); }
 .empty { padding: 1.5rem; text-align: center; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius); }
 
+/* next up */
+.nextup { display: grid; gap: .6rem; }
+.nextup-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.nextup-head h2 { font-size: 1.15rem; }
+.nextup-count { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.nextup-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+.nextup-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem .9rem; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .2rem .6rem; align-items: start; }
+.nextup-card input[type=checkbox] { width: 18px; height: 18px; margin-top: .2rem; accent-color: var(--accent); }
+.nextup-card .row-main { grid-column: 2; }
+.nextup-card .row-meta { grid-column: 2 / 4; }
+.nextup-card .icon { padding: 0 .25rem; font-size: 1rem; }
+.nextup-slot { border: 1px dashed var(--border); border-radius: var(--radius); display: grid; place-items: center; padding: .75rem; min-height: 5rem; font-size: .85rem; color: var(--muted); text-align: center; }
+.suggest { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; font-size: .85rem; color: var(--muted); }
+.suggest button { border-radius: 999px; padding: .2rem .75rem; font-size: .85rem; border-style: dashed; background: none; color: var(--text); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mission-name { font-size: .75rem; color: var(--muted); letter-spacing: .04em; }
+
+/* labels on tasks */
+.chip-label { display: inline-flex; align-items: center; gap: .3rem; font-size: .75rem; border: 1px solid var(--border); border-radius: 999px; padding: .05rem .55rem; color: var(--text); white-space: nowrap; }
+.chip-label .k { color: var(--muted); }
+.chip-label .dot { width: 8px; height: 8px; border-radius: 50%; }
+.owner { font-size: .8rem; color: var(--text); }
+.owner .k { color: var(--muted); }
+.pin { flex: none; border-radius: 999px; padding: .2rem .65rem; font-size: .8rem; background: none; color: var(--muted); white-space: nowrap; }
+.pin.on { background: var(--sunken); border-color: var(--accent); color: var(--text); }
+.owners-pick { display: flex; flex-wrap: wrap; gap: .4rem; }
+.owners-pick button { border-radius: 999px; padding: .3rem .9rem; font-size: .9rem; background: none; color: var(--text); }
+.owners-pick button[aria-pressed="true"] { background: var(--sunken); border-color: var(--accent); font-weight: 500; }
+
 /* dialogs */
 dialog {
   width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
@@ -205,7 +233,7 @@ dialog::backdrop { background: var(--scrim); }
 .field { display: grid; gap: .3rem; font-size: .85rem; color: var(--muted); }
 .field select, .field textarea, .field input { color: var(--text); font-size: 1rem; }
 .money { display: flex; align-items: center; gap: .4rem; }
-.dialog-foot { display: flex; justify-content: space-between; gap: .5rem; border-top: 1px solid var(--border); padding-top: 1rem; }
+.dialog-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; border-top: 1px solid var(--border); padding-top: 1rem; }
 #ask-form { display: grid; gap: .9rem; }
 .ask-actions { display: flex; flex-wrap: wrap; flex-direction: row-reverse; gap: .5rem; }
 .ask-actions .danger { margin-right: auto; }
@@ -224,6 +252,10 @@ dialog::backdrop { background: var(--scrim); }
   .pips { grid-area: pips; }
   .pip-label { grid-area: label; }
   .pips button { width: 2.4rem; height: 2.4rem; }
+  .nextup-list { grid-template-columns: minmax(0, 1fr); }
+  .nextup-slot { min-height: 0; }
+  .row-item { flex-wrap: wrap; }
+  .row-item .row-main { flex: 1 1 60%; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -232,14 +264,14 @@ dialog::backdrop { background: var(--scrim); }
   <div class="narrow" style="justify-items:center;text-align:center">
     <svg class="enso" viewBox="0 0 56 56" aria-hidden="true"><path d="M44 14a21 21 0 1 0 5 15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".55"/></svg>
     <h1>Impact Matrix</h1>
-    <p class="muted">Shared to-do lists you each score for impact, effort and cost. Opening your lists…</p>
+    <p class="muted">Shared missions you each score for impact, effort and cost. Opening your missions…</p>
   </div>
 </section>
 
 <section id="nodb" class="screen" hidden>
   <div class="card narrow">
     <h1>Impact Matrix</h1>
-    <p>Your shared lists open inside claude.ai. Sign in to Claude, then open this page again from the link you were sent.</p>
+    <p>Your shared missions open inside claude.ai. Sign in to Claude, then open this page again from the link you were sent.</p>
     <p class="muted">If you are signed in and still see this, ask the person who shared it to invite you by email as an Editor.</p>
   </div>
 </section>
@@ -259,19 +291,28 @@ dialog::backdrop { background: var(--scrim); }
 <section id="app" hidden>
   <header class="topbar">
     <h1 class="brand">Impact Matrix</h1>
-    <nav id="list-tabs" class="tabs" aria-label="Lists"></nav>
+    <nav id="list-tabs" class="tabs" aria-label="Missions"></nav>
     <button id="me-chip" class="chip" type="button" title="Switch person"></button>
   </header>
 
   <main>
-    <div id="readonly-banner" class="banner" hidden>You can view these lists but not change them. To edit, ask the owner to share the page with you by email as an Editor.</div>
+    <div id="readonly-banner" class="banner" hidden>You can view these missions but not change them. To edit, ask the owner to share the page with you by email as an Editor.</div>
+
+    <section id="nextup" class="nextup" aria-labelledby="nextup-title" hidden>
+      <div class="nextup-head">
+        <h2 id="nextup-title">Next up</h2>
+        <span id="nextup-count" class="nextup-count"></span>
+      </div>
+      <ol id="nextup-list" class="nextup-list"></ol>
+      <div id="nextup-suggest" class="suggest"></div>
+    </section>
 
     <div id="empty-lists" class="screen" style="padding-inline:0" hidden>
       <div class="card narrow">
-        <h2>Start your first list</h2>
+        <h2>Start your first mission</h2>
         <p class="muted">For example House, Garden or Holiday. Add tasks, then each of you scores them from 1 to 5 for impact, effort and cost.</p>
         <form id="first-list-form" class="row">
-          <input id="first-list-name" name="name" placeholder="List name" maxlength="60" required>
+          <input id="first-list-name" name="name" placeholder="Mission name" maxlength="60" required>
           <button class="primary" type="submit">Create</button>
         </form>
       </div>
@@ -325,6 +366,9 @@ dialog::backdrop { background: var(--scrim); }
       <button value="close" class="icon" aria-label="Close">✕</button>
     </div>
     <fieldset id="item-fields">
+      <div class="field">Owners
+        <div id="owners-pick" class="owners-pick" role="group" aria-label="Owners"></div>
+      </div>
       <div id="my-scores" class="scores"></div>
       <div id="other-scores" class="others"></div>
       <label class="field">Estimated cost
@@ -333,11 +377,12 @@ dialog::backdrop { background: var(--scrim); }
       <label class="field">Notes
         <textarea id="item-notes" name="notes" rows="3" maxlength="2000" placeholder="Details, links, who’s doing it…"></textarea>
       </label>
-      <label class="field">List
+      <label class="field">Mission
         <select id="item-list" name="listId"></select>
       </label>
       <div class="dialog-foot">
         <button type="button" id="delete-item" class="danger">Delete</button>
+        <button type="button" id="toggle-nextup"></button>
         <button type="button" id="toggle-done"></button>
       </div>
     </fieldset>
@@ -364,7 +409,7 @@ dialog::backdrop { background: var(--scrim); }
   const MIDPOINT = 3;
   const LABELS = {
     impact: ['Tiny', 'Small', 'Medium', 'Big', 'Huge'],
-    effort: ['Minutes', 'An hour', 'A day', 'A weekend', 'Weeks'],
+    effort: ['Minutes', 'Hours', 'Days', 'Weeks', 'Months'],
     cost: ['Free', 'Cheap', 'Moderate', 'Pricey', 'Expensive'],
   };
   const QUADRANTS = {
@@ -447,7 +492,7 @@ dialog::backdrop { background: var(--scrim); }
   const loaded = new Set();
   const byCreated = (a, b) => String(a.createdAt).localeCompare(String(b.createdAt));
   const now = () => new Date().toISOString();
-  const READ_ONLY = 'You can view but not change these lists. Ask the owner to share the page with you by email as an Editor.';
+  const READ_ONLY = 'You can view but not change these missions. Ask the owner to share the page with you by email as an Editor.';
 
   function subscribe(name) {
     store.db.collection(name).onSnapshot((snap) => {
@@ -455,7 +500,7 @@ dialog::backdrop { background: var(--scrim); }
       loaded.add(name);
       if (loaded.size === 3) onData();
     }, (err) => {
-      if (err && err.code === 'revoked') { toast('Access to these lists changed. Reload the page to continue.'); return; }
+      if (err && err.code === 'revoked') { toast('Access to these missions changed. Reload the page to continue.'); return; }
       setTimeout(() => subscribe(name), 3000);
     });
   }
@@ -483,7 +528,7 @@ dialog::backdrop { background: var(--scrim); }
     } else if (code === 'quota_exceeded') {
       toast('Storage is full. Delete some finished tasks to make room.');
     } else if (code === 'revoked') {
-      toast('Access to these lists changed. Reload the page to continue.');
+      toast('Access to these missions changed. Reload the page to continue.');
     } else {
       toast('Couldn’t save that. Check your connection and try again.');
     }
@@ -516,6 +561,29 @@ dialog::backdrop { background: var(--scrim); }
   const fmt = (n) => (n == null ? '–' : Number.isInteger(n) ? String(n) : n.toFixed(1));
   const money = (a) => (a == null ? '' : '€' + a.toLocaleString(undefined, { maximumFractionDigits: 2 }));
   const costColor = (c) => (c == null ? 'var(--unscored)' : `var(--cost-${Math.min(5, Math.max(1, Math.round(c)))})`);
+  const NEXT_UP_MAX = 3;
+  const labelFor = (dim, v) => (v == null ? null : LABELS[dim][Math.min(5, Math.max(1, Math.round(v))) - 1]);
+  const missionName = (id) => (state.lists.find((l) => l.id === id) || {}).name || '';
+  const ownerIds = (item) => (Array.isArray(item.owners) ? item.owners : []).filter((id) => state.members.some((m) => m.id === id));
+  const nextUpItems = () => state.items.filter((i) => i.nextUpAt && !i.done).sort((a, b) => String(a.nextUpAt).localeCompare(String(b.nextUpAt))).slice(0, NEXT_UP_MAX);
+  // Effort as time and cost in words (plus the € estimate), using combined scores.
+  function taskLabels(item, s) {
+    const out = [];
+    const effort = labelFor('effort', s.effort);
+    if (effort) out.push(h('span', { class: 'chip-label', title: 'Effort' }, h('span', { class: 'k' }, 'Effort'), effort));
+    const cost = labelFor('cost', s.cost);
+    if (cost || item.costAmount != null) {
+      out.push(h('span', { class: 'chip-label', title: 'Cost' },
+        s.cost != null && h('span', { class: 'dot', style: `background:${costColor(s.cost)}` }),
+        h('span', { class: 'k' }, 'Cost'), [cost, money(item.costAmount)].filter(Boolean).join(' · ')));
+    }
+    return out;
+  }
+  function ownersLabel(item) {
+    const ids = ownerIds(item);
+    if (!ids.length) return null;
+    return h('span', { class: 'owner' }, h('span', { class: 'k' }, ids.length > 1 ? 'Owners ' : 'Owner '), ids.map(memberName).join(' & '));
+  }
   const memberName = (id) => (state.members.find((m) => m.id === id) || {}).name || 'Someone';
   let toastTimer;
   function toast(msg) {
@@ -575,6 +643,7 @@ dialog::backdrop { background: var(--scrim); }
     const list = currentList();
     if (list && list.id !== ui.listId) { ui.listId = list.id; prefs.set('listId', list.id); }
     renderTabs();
+    renderNextUp();
     $('#empty-lists').hidden = Boolean(list);
     $('#list-view').hidden = !list;
     if (!list) { renderDialog(); return; }
@@ -613,10 +682,39 @@ dialog::backdrop { background: var(--scrim); }
       const open = state.items.filter((i) => i.listId === list.id && !i.done).length;
       return h('div', { class: 'tab' + (active ? ' active' : '') },
         h('button', { type: 'button', class: 'tab-name', onclick: () => selectList(list.id) }, list.name, h('span', { class: 'count' }, String(open))),
-        active && !store.readOnly && h('button', { type: 'button', class: 'tab-menu', 'aria-label': 'Rename or delete list', title: 'Rename or delete list', onclick: () => listMenu(list) }, '⋯'));
+        active && !store.readOnly && h('button', { type: 'button', class: 'tab-menu', 'aria-label': 'Rename or delete mission', title: 'Rename or delete mission', onclick: () => listMenu(list) }, '⋯'));
     });
-    if (!store.readOnly) tabs.push(h('button', { type: 'button', class: 'tab-add', 'aria-label': 'New list', title: 'New list', onclick: newList }, '+'));
+    if (!store.readOnly) tabs.push(h('button', { type: 'button', class: 'tab-add', 'aria-label': 'New mission', title: 'New mission', onclick: newList }, '+'));
     $('#list-tabs').replaceChildren(...tabs);
+  }
+
+  function renderNextUp() {
+    const pinned = nextUpItems();
+    const open = state.items.filter((i) => !i.done);
+    const panel = $('#nextup');
+    panel.hidden = !open.length && !pinned.length;
+    if (panel.hidden) return;
+    $('#nextup-count').textContent = `${pinned.length} of ${NEXT_UP_MAX}`;
+    const cards = pinned.map((item) => h('li', { class: 'nextup-card' },
+      h('input', { type: 'checkbox', disabled: store.readOnly, 'aria-label': 'Done', onchange: (e) => setDone(item, e.target.checked) }),
+      h('button', { type: 'button', class: 'row-main', onclick: () => openItem(item.id) },
+        h('span', { class: 'mission-name' }, missionName(item.listId)),
+        h('span', { class: 'row-title' }, item.title)),
+      store.readOnly ? h('span') : h('button', { type: 'button', class: 'icon', title: 'Remove from Next up', 'aria-label': 'Remove from Next up', onclick: () => toggleNextUp(item) }, '✕'),
+      h('span', { class: 'row-meta' }, taskLabels(item, scoresFor(item, 'combined')), ownersLabel(item))));
+    for (let i = pinned.length; i < NEXT_UP_MAX; i++) {
+      cards.push(h('li', { class: 'nextup-slot' }, i === pinned.length ? 'Open slot. Add a task from the suggestions or a task’s window.' : 'Open slot'));
+    }
+    $('#nextup-list').replaceChildren(...cards);
+
+    const room = NEXT_UP_MAX - pinned.length;
+    const list = currentList();
+    const ideas = room && list && !store.readOnly
+      ? rankItems(state.items.filter((i) => i.listId === list.id && !i.done && !i.nextUpAt), 'combined', ui.costWeight).filter((r) => r.priority != null).slice(0, room)
+      : [];
+    $('#nextup-suggest').replaceChildren(...(ideas.length
+      ? [h('span', {}, `Suggested from ${list.name}:`), ...ideas.map(({ item }) => h('button', { type: 'button', title: 'Add to Next up', onclick: () => toggleNextUp(item) }, '+ ' + item.title))]
+      : []));
   }
 
   function renderControls() {
@@ -764,16 +862,22 @@ dialog::backdrop { background: var(--scrim); }
     ol.replaceChildren(...ranked.map(({ item, scores, priority: p }) => {
       const q = quadrant(scores, ui.xAxis, ui.costWeight);
       const missing = missingScorers(item, ids);
+      const impact = labelFor('impact', scores.impact);
       return h('li', { class: 'row-item' + (item.done ? ' done' : '') },
         h('input', { type: 'checkbox', checked: item.done, disabled: store.readOnly, 'aria-label': 'Done', onchange: (e) => setDone(item, e.target.checked) }),
         h('button', { type: 'button', class: 'row-main', onclick: () => openItem(item.id) },
           h('span', { class: 'row-title' }, item.title),
           h('span', { class: 'row-meta' },
             q && h('span', { class: 'tag q-' + q }, QUADRANTS[q].name),
-            h('span', {}, `I ${fmt(scores.impact)} · E ${fmt(scores.effort)} · C ${fmt(scores.cost)}`),
-            item.costAmount != null && h('span', {}, money(item.costAmount)),
+            impact && h('span', {}, impact + ' impact'),
+            taskLabels(item, scores),
+            ownersLabel(item),
             disagreement(item) >= 2 && h('span', { class: 'tag debate' }, 'talk about it'),
             missing.length > 0 && h('span', { class: 'tag waiting' }, 'waiting on ' + missing.map(memberName).join(' & ')))),
+        !item.done && !store.readOnly && h('button', {
+          type: 'button', class: 'pin' + (item.nextUpAt ? ' on' : ''), 'aria-pressed': String(Boolean(item.nextUpAt)),
+          title: item.nextUpAt ? 'Remove from Next up' : 'Add to Next up', onclick: () => toggleNextUp(item),
+        }, item.nextUpAt ? 'Next up ✓' : '+ Next up'),
         h('span', { class: 'score', title: 'Priority: impact ÷ (effort/cost blend)' }, p == null ? '–' : p.toFixed(1) + '×'));
     }));
   }
@@ -804,6 +908,12 @@ dialog::backdrop { background: var(--scrim); }
     }
     $('#item-fields').disabled = store.readOnly;
     $('#item-title').disabled = store.readOnly;
+    const owners = ownerIds(item);
+    $('#owners-pick').replaceChildren(...(state.members.length
+      ? state.members.map((mm) => h('button', {
+        type: 'button', 'aria-pressed': String(owners.includes(mm.id)), onclick: () => toggleOwner(item, mm.id),
+      }, mm.name))
+      : [h('span', { class: 'muted' }, 'No one yet')]));
     const mine = (ui.me && (item.scores || {})[ui.me]) || {};
     $('#my-scores').replaceChildren(...(ui.me ? [
       h('h3', {}, 'Your scores'),
@@ -825,11 +935,14 @@ dialog::backdrop { background: var(--scrim); }
     const c = scoresFor(item, 'combined');
     const p = priority(c, ui.costWeight);
     const q = quadrant(c, ui.xAxis, ui.costWeight);
-    lines.push(h('p', { class: 'muted' }, `Combined: impact ${fmt(c.impact)} · effort ${fmt(c.effort)} · cost ${fmt(c.cost)}`,
+    lines.push(h('p', { class: 'muted' }, `Combined: impact ${labelFor('impact', c.impact) || '–'} · effort ${labelFor('effort', c.effort) || '–'} · cost ${labelFor('cost', c.cost) || '–'}`,
       p != null ? ` → ${p.toFixed(1)}× priority` : '', q ? ' · ' + QUADRANTS[q].name : ''));
     if (disagreement(item) >= 2) lines.push(h('p', { class: 'tag debate' }, 'You scored this quite differently. Worth a chat.'));
     $('#other-scores').replaceChildren(...lines);
 
+    const n = $('#toggle-nextup');
+    n.hidden = Boolean(item.done);
+    n.textContent = item.nextUpAt ? 'Remove from Next up' : 'Add to Next up';
     const t = $('#toggle-done');
     t.textContent = item.done ? 'Mark not done' : 'Mark done ✓';
     t.className = item.done ? '' : 'primary';
@@ -844,7 +957,20 @@ dialog::backdrop { background: var(--scrim); }
     patchItem(item, { scores: { [ui.me]: { [dim]: value } } });
   }
   function setDone(item, done) {
-    patchItem(item, { done, doneAt: done ? now() : null });
+    // Finishing a task frees its Next up slot.
+    patchItem(item, done ? { done, doneAt: now(), nextUpAt: null } : { done, doneAt: null });
+  }
+  function toggleNextUp(item) {
+    if (item.nextUpAt) { patchItem(item, { nextUpAt: null }); return; }
+    if (item.done) return;
+    if (nextUpItems().length >= NEXT_UP_MAX) { toast('Next up holds three tasks. Finish or remove one first.'); return; }
+    patchItem(item, { nextUpAt: now() });
+  }
+  function toggleOwner(item, memberId) {
+    const current = ownerIds(item);
+    const next = current.includes(memberId) ? current.filter((id) => id !== memberId) : [...current, memberId];
+    // Keep a stable order (the order people joined).
+    patchItem(item, { owners: state.members.map((mm) => mm.id).filter((id) => next.includes(id)) });
   }
   function saveField(field, raw) {
     const item = state.items.find((i) => i.id === ui.openItemId);
@@ -883,13 +1009,13 @@ dialog::backdrop { background: var(--scrim); }
     }
   }
   async function newList() {
-    const r = await ask({ title: 'New list', input: '', actions: [{ value: 'ok', label: 'Create', kind: 'primary' }, { value: 'cancel', label: 'Cancel' }] });
+    const r = await ask({ title: 'New mission', input: '', actions: [{ value: 'ok', label: 'Create', kind: 'primary' }, { value: 'cancel', label: 'Cancel' }] });
     if (r.action === 'ok') createList(r.value);
   }
   async function listMenu(list) {
     const r = await ask({
-      title: 'Rename list', input: list.name,
-      actions: [{ value: 'ok', label: 'Save', kind: 'primary' }, { value: 'cancel', label: 'Cancel' }, { value: 'delete', label: 'Delete list', kind: 'danger' }],
+      title: 'Rename mission', input: list.name,
+      actions: [{ value: 'ok', label: 'Save', kind: 'primary' }, { value: 'cancel', label: 'Cancel' }, { value: 'delete', label: 'Delete mission', kind: 'danger' }],
     });
     if (r.action === 'ok' && r.value && r.value !== list.name) {
       write('lists/' + list.id, () => docRef('lists', list.id).update({ name: r.value.slice(0, 60) }));
@@ -936,7 +1062,7 @@ dialog::backdrop { background: var(--scrim); }
       if (!title || !list) return;
       const ref = store.db.collection('items').doc();
       const t = now();
-      const body = { listId: list.id, title, notes: '', costAmount: null, done: false, doneAt: null, createdBy: ui.me, createdAt: t, updatedAt: t, scores: {} };
+      const body = { listId: list.id, title, notes: '', costAmount: null, done: false, doneAt: null, createdBy: ui.me, owners: [], nextUpAt: null, createdAt: t, updatedAt: t, scores: {} };
       if (await write('items/' + ref.id, () => ref.set(body))) {
         $('#add-item-title').value = '';
         if (!state.items.some((i) => i.id === ref.id)) state.items = [...state.items, { ...body, id: ref.id }];
@@ -957,6 +1083,10 @@ dialog::backdrop { background: var(--scrim); }
 
     const fields = { title: '#item-title', notes: '#item-notes', costAmount: '#item-cost', listId: '#item-list' };
     for (const [field, sel] of Object.entries(fields)) $(sel).addEventListener('change', (e) => saveField(field, e.target.value));
+    $('#toggle-nextup').addEventListener('click', () => {
+      const item = state.items.find((i) => i.id === ui.openItemId);
+      if (item) toggleNextUp(item);
+    });
     $('#toggle-done').addEventListener('click', () => {
       const item = state.items.find((i) => i.id === ui.openItemId);
       if (item) setDone(item, !item.done);

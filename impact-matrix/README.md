@@ -33,7 +33,11 @@ You can also note an estimated cost in money (€ by default).
 
 ## Hosted on claude.ai (no server needed)
 
-`artifact/impact-matrix.html` is the same app as a single claude.ai Artifact page. Your lists
+`artifact/impact-matrix.html` is the app as a single claude.ai Artifact page. It is the
+version in active use and has a few extras the self-hosted app doesn't have yet: lists are
+called **missions**, tasks can have **owners**, a shared **Next up** shortlist holds at most
+three tasks (with suggestions from the current mission), task rows show effort as time
+(Minutes, Hours, Days, Weeks, Months) and cost in words with the € estimate. Your lists
 are kept in the artifact's shared database, and each person is recognised by their Claude
 login. Share it by email with **Editor** access, and don't also turn on a public link:
 people invited from outside your account can only make changes while there is no public link.

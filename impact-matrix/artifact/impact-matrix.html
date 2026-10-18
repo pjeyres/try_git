@@ -423,12 +423,12 @@ dialog::backdrop { background: var(--scrim); }
       <h2 id="import-title" style="flex:1">Import tasks</h2>
       <button value="cancel" class="icon" aria-label="Close" formnovalidate>✕</button>
     </div>
-    <p class="muted">Paste from a doc or note (one task per line), or rows copied from Google Sheets or Excel. Bullets and checkboxes are removed, “€250” becomes the cost and “by 24 Oct” the by-when date, and columns named Task, Notes, Cost, Owner and By when are recognised.</p>
+    <p class="muted">Paste from a doc or note (one task per line), or rows copied from Google Sheets or Excel. Bullets and checkboxes are removed, “€250” becomes the cost and “by 24 Oct” the by-when date, and spreadsheet columns are matched by name. The full CSV template also takes Mission, scores for each person, Next up and Done.</p>
     <textarea id="import-text" rows="6" placeholder="Fix leaking tap €15&#10;• Repaint living room&#10;[ ] Clean gutters"></textarea>
     <label class="file-pick">Or choose a file (.csv, .tsv, .txt or .md)
       <input type="file" id="import-file" accept=".csv,.tsv,.txt,.md,text/plain,text/csv,text/tab-separated-values,text/markdown">
     </label>
-    <label class="field">Into mission
+    <label class="field"><span id="import-mission-label">Into mission</span>
       <select id="import-mission"></select>
     </label>
     <input id="import-new-mission" placeholder="New mission name" maxlength="60" aria-label="New mission name" hidden>
@@ -1150,6 +1150,8 @@ dialog::backdrop { background: var(--scrim); }
     ['costAmount', /^(costs?|price|budget|amount|estimated? ?cost|cost estimate|€|eur|euros?|spend|kosten|prijs|bedrag|preis|betrag|co[uû]ts?|prix|montant)$/],
     ['owners', /^(owners?|who|assigned ?to|assignee|person|responsible|wie|eigenaar|verantwoordelijke?|wer|zust[aä]ndig|besitzer|qui|responsable)$/],
     ['dueDate', /^(by when|due|due date|due by|deadline|date|when|by|datum|wanneer|uiterlijk|deadline datum|f[aä]llig|f[aä]llig am|bis|bis wann|termin|[ée]ch[ée]ance|date limite)$/],
+    ['mission', /^(missions?|lists?|projects?|area|category|categorie|missie|projekt|projet)$/],
+    ['nextUp', /^(next ?up|up next|next|focus)$/],
     ['done', /^(done|status|complete|completed|finished|klaar|gedaan|erledigt|fertig|fait|termin[eé])$/],
   ];
   const DONE_VALUE = /^(x|y|yes|done|true|complete|completed|finished|ja|klaar|gedaan|erledigt|fertig|oui|fait|✓|✔|☑|✅)$/i;
@@ -1185,7 +1187,7 @@ dialog::backdrop { background: var(--scrim); }
     return null;
   }
   const MONEY = /(?:€\s?(\d[\d.,]*\d|\d)|(\d[\d.,]*\d|\d)\s?(?:€|eur(?:os?)?\b))/i;
-  const imp = { overrides: new Map(), rows: [], loadedText: null, delim: null };
+  const imp = { overrides: new Map(), rows: [], total: 0, loadedText: null, delim: null };
 
   function parseAmount(raw) {
     let t = String(raw || '').replace(/[€\s]|eur(?:os?)?/gi, '');
@@ -1268,54 +1270,93 @@ dialog::backdrop { background: var(--scrim); }
   }
 
   // Turn pasted text or a file into candidate tasks.
+  // Score columns: "Impact", "Effort", "Cost score" (yours) or "Impact (Anna)" etc. for a named person.
+  const SCORE_HEAD = /^\s*(impact|effort|cost ?score)\s*(?:[([:\-–]\s*([^)\]]*?)\s*[)\]]?)?\s*$/i;
+  const TRUE_VALUE = /^(x|y|yes|true|1|ja|oui|next|next up|✓|✔|☑|✅)$/i;
+  // 1–5, or the scale's words ("Huge", "Days", "Pricey"); undefined when unreadable.
+  function parseScore(dim, raw) {
+    const t = String(raw || '').trim();
+    if (!t) return null;
+    const n = Number(t.replace(',', '.'));
+    if (Number.isInteger(n) && n >= 1 && n <= 5) return n;
+    const k = t.toLowerCase().slice(0, 3);
+    const i = LABELS[dim].findIndex((l) => l.toLowerCase().slice(0, 3) === k);
+    return i >= 0 ? i + 1 : undefined;
+  }
+  function findMember(name) {
+    const p = String(name || '').trim().toLowerCase();
+    if (!p) return null;
+    return state.members.find((x) => x.name.toLowerCase() === p)
+      || state.members.find((x) => x.name.toLowerCase().startsWith(p) || p.startsWith(x.name.toLowerCase())) || null;
+  }
+
   function parseImport(text, forcedDelim) {
+    text = text.replace(/^﻿/, '');
     const lines = text.split(/\r?\n/).filter((l) => l.trim());
     const tabbed = lines.filter((l) => l.includes('\t')).length;
     const delim = forcedDelim || (tabbed && tabbed >= lines.length / 2 ? '\t' : null);
     const out = [];
+    const plain = (c) => ({ ...c, notes: '', ownerRaw: '', mission: '', scores: [], nextUp: false });
     if (!delim) {
-      for (const l of lines) { const c = cleanLine(l); if (c) out.push({ ...c, notes: '', owners: [] }); }
+      for (const l of lines) { const c = cleanLine(l); if (c) out.push(plain(c)); }
       return out;
     }
     const table = parseDelimited(text, delim);
     if (!table.length) return out;
     const norm = (c) => c.toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-zà-ÿ€ ]/g, ' ').replace(/\s+/g, ' ').trim();
     const map = {};
+    let scoreCols = [];
     table[0].forEach((cell, i) => {
+      const sm = cell.match(SCORE_HEAD);
+      if (sm) {
+        scoreCols.push({ i, dim: /^cost/i.test(sm[1]) ? 'cost' : sm[1].toLowerCase(), person: (sm[2] || '').trim() || null, head: cell.trim() });
+        return;
+      }
       const n = norm(cell);
       const hit = HEADER_FIELDS.find(([field, re]) => map[field] === undefined && re.test(n));
       if (hit) map[hit[0]] = i;
     });
-    const hasHeader = map.title !== undefined || Object.keys(map).length >= 2;
+    const hasHeader = map.title !== undefined || Object.keys(map).length + scoreCols.length >= 2;
+    if (!hasHeader) { Object.keys(map).forEach((k) => delete map[k]); scoreCols = []; }
     const header = hasHeader ? table[0] : [];
-    if (map.title === undefined) map.title = header.findIndex((_, i) => !Object.values(map).includes(i));
+    const taken = new Set([...Object.values(map), ...scoreCols.map((c) => c.i)]);
+    if (map.title === undefined) map.title = header.findIndex((_, i) => !taken.has(i));
     if (map.title < 0 || map.title === undefined) map.title = 0;
-    const used = new Set(Object.values(map));
+    const used = new Set([...taken, map.title]);
     for (const row of hasHeader ? table.slice(1) : table) {
       const titleCell = row[map.title] || row.find(Boolean) || '';
       const c = cleanLine(titleCell);
       if (!c) continue;
+      const col = (f) => (map[f] !== undefined ? (row[map[f]] || '').trim() : '');
       const notes = [];
-      if (map.notes !== undefined && row[map.notes]) notes.push(row[map.notes]);
+      if (col('notes')) notes.push(col('notes'));
       row.forEach((cell, i) => { if (cell && !used.has(i) && cell !== titleCell) notes.push(header[i] ? `${header[i]}: ${cell}` : cell); });
       let costAmount = c.costAmount;
-      if (map.costAmount !== undefined && row[map.costAmount]) {
-        const a = parseAmount(row[map.costAmount]);
-        if (a != null) costAmount = a; else notes.push(`Cost: ${row[map.costAmount]}`);
-      }
-      let owners = [];
-      if (map.owners !== undefined && row[map.owners]) {
-        const o = matchOwners(row[map.owners]);
-        owners = o.ids;
-        if (o.unknown.length) notes.push(`Owner: ${o.unknown.join(', ')}`);
+      if (col('costAmount')) {
+        const a = parseAmount(col('costAmount'));
+        if (a != null) costAmount = a; else notes.push(`Cost: ${col('costAmount')}`);
       }
       let dueDate = c.dueDate;
-      if (map.dueDate !== undefined && row[map.dueDate]) {
-        const d = parseDue(row[map.dueDate]);
-        if (d) dueDate = d; else notes.push(`By when: ${row[map.dueDate]}`);
+      if (col('dueDate')) {
+        const d = parseDue(col('dueDate'));
+        if (d) dueDate = d; else notes.push(`By when: ${col('dueDate')}`);
       }
-      const done = c.done || (map.done !== undefined && DONE_VALUE.test(row[map.done] || ''));
-      out.push({ title: c.title, done, costAmount, dueDate, owners, notes: notes.join(' · ').slice(0, 2000) });
+      const scores = [];
+      for (const sc of scoreCols) {
+        const raw = (row[sc.i] || '').trim();
+        if (!raw) continue;
+        const v = parseScore(sc.dim, raw);
+        if (v === undefined) notes.push(`${sc.head}: ${raw}`); else scores.push({ person: sc.person, dim: sc.dim, value: v });
+      }
+      out.push({
+        title: c.title,
+        done: c.done || DONE_VALUE.test(col('done')),
+        costAmount, dueDate, scores,
+        ownerRaw: col('owners'),
+        mission: col('mission').slice(0, 60),
+        nextUp: TRUE_VALUE.test(col('nextUp')),
+        notes: notes.join(' · ').slice(0, 2000),
+      });
     }
     return out;
   }
@@ -1325,46 +1366,85 @@ dialog::backdrop { background: var(--scrim); }
     return v === '__new' ? null : v;
   }
 
+  // Missions and people an import would add.
+  function importPlan(rows) {
+    const known = new Set(state.lists.map((l) => l.name.toLowerCase()));
+    const missions = new Map(), people = new Map();
+    for (const r of rows) {
+      if (r.mission && !known.has(r.mission.toLowerCase())) missions.set(r.mission.toLowerCase(), r.mission);
+      for (const sc of r.scores) if (sc.person && !findMember(sc.person)) people.set(sc.person.toLowerCase(), sc.person);
+    }
+    return { missions: [...missions.values()], people: [...people.values()] };
+  }
+
   function updateImportPreview() {
     const text = $('#import-text').value;
     const forced = imp.loadedText !== null && text === imp.loadedText ? imp.delim : null;
     const parsed = parseImport(text, forced);
-    const target = importTarget();
-    const existing = new Set(state.items.filter((i) => i.listId === target).map((i) => i.title.toLowerCase()));
+    imp.total = parsed.length;
+    const fallback = importTarget() || 'new';
+    const byName = new Map(state.lists.map((l) => [l.name.toLowerCase(), l.id]));
+    const titles = new Map();
+    const titlesIn = (id) => {
+      if (!titles.has(id)) titles.set(id, new Set(state.items.filter((i) => i.listId === id).map((i) => i.title.toLowerCase())));
+      return titles.get(id);
+    };
     const seen = new Set();
     imp.rows = parsed.slice(0, IMPORT_MAX).map((r) => {
-      const key = r.title.toLowerCase();
-      const why = existing.has(key) ? 'already in this mission' : seen.has(key) ? 'repeated' : r.done ? 'marked done' : '';
-      seen.add(key);
-      const include = imp.overrides.has(key + '|' + why) ? imp.overrides.get(key + '|' + why) : !why;
-      return { ...r, key: key + '|' + why, why, include };
+      const target = r.mission ? (byName.get(r.mission.toLowerCase()) || 'new:' + r.mission.toLowerCase()) : fallback;
+      const t = r.title.toLowerCase();
+      const why = titlesIn(target).has(t) ? 'already in this mission' : seen.has(target + '|' + t) ? 'repeated' : r.done ? 'marked done' : '';
+      seen.add(target + '|' + t);
+      const key = `${target}|${t}|${why}`;
+      return { ...r, key, why, include: imp.overrides.has(key) ? imp.overrides.get(key) : !why };
     });
-    renderImportPreview(parsed.length);
+    $('#import-mission-label').textContent = imp.rows.some((r) => r.mission) ? 'Mission for rows without one' : 'Into mission';
+    renderImportPreview();
   }
 
-  function renderImportPreview(totalFound) {
-    const chosen = imp.rows.filter((r) => r.include).length;
-    const skipped = imp.rows.length - chosen;
-    const summary = $('#import-summary');
-    summary.textContent = !imp.rows.length
-      ? ($('#import-text').value.trim() ? 'No tasks found yet. Put one task on each line.' : '')
-      : `${chosen} of ${imp.rows.length} task${imp.rows.length > 1 ? 's' : ''} selected` + (skipped ? ` · untick or tick to change` : '')
-        + (totalFound > IMPORT_MAX ? ` · only the first ${IMPORT_MAX} are shown` : '');
+  function scoreSummary(r) {
+    const byPerson = new Map();
+    for (const sc of r.scores) {
+      const who = sc.person || memberName(ui.me);
+      if (!byPerson.has(who)) byPerson.set(who, {});
+      byPerson.get(who)[sc.dim] = sc.value;
+    }
+    return [...byPerson].map(([who, v]) => `${who} ${DIMENSIONS.filter((d) => v[d]).map((d) => d[0].toUpperCase() + v[d]).join(' ')}`).join('; ');
+  }
+
+  function renderImportPreview() {
+    const chosen = imp.rows.filter((r) => r.include);
+    const parts = [];
+    if (imp.rows.length) {
+      parts.push(`${chosen.length} of ${imp.rows.length} task${imp.rows.length > 1 ? 's' : ''} selected`);
+      const plan = importPlan(chosen);
+      if (plan.missions.length) parts.push(`new mission${plan.missions.length > 1 ? 's' : ''}: ${plan.missions.join(', ')}`);
+      if (plan.people.length) parts.push(`adds ${plan.people.join(' & ')} for their scores`);
+      const free = Math.max(0, NEXT_UP_MAX - nextUpItems().length);
+      if (chosen.filter((r) => r.nextUp && !r.done).length > free) parts.push(`only ${free} more fit in Next up`);
+      if (imp.total > IMPORT_MAX) parts.push(`only the first ${IMPORT_MAX} are shown`);
+    } else if ($('#import-text').value.trim()) {
+      parts.push('No tasks found yet. Put one task on each line.');
+    }
+    $('#import-summary').textContent = parts.join(' · ');
     $('#import-preview').replaceChildren(...imp.rows.map((r) => {
       const meta = [
+        r.mission && '→ ' + r.mission,
+        r.ownerRaw && 'Owner ' + r.ownerRaw,
         r.dueDate && 'By ' + dueText(r.dueDate),
         r.costAmount != null && money(r.costAmount),
-        r.owners.length && (r.owners.length > 1 ? 'Owners ' : 'Owner ') + r.owners.map(memberName).join(' & '),
+        r.scores.length && 'Scores ' + scoreSummary(r),
+        r.nextUp && !r.done && 'Next up',
         r.notes && (r.notes.length > 80 ? r.notes.slice(0, 79) + '…' : r.notes),
         r.why && `Unticked: ${r.why}`,
       ].filter(Boolean).join(' · ');
       return h('label', { class: 'import-row' + (r.include ? '' : ' off') },
-        h('input', { type: 'checkbox', checked: r.include, onchange: (e) => { r.include = e.target.checked; imp.overrides.set(r.key, r.include); renderImportPreview(totalFound); } }),
+        h('input', { type: 'checkbox', checked: r.include, onchange: (e) => { r.include = e.target.checked; imp.overrides.set(r.key, r.include); renderImportPreview(); } }),
         h('span', { class: 'body' }, h('span', { class: 't' }, r.title), meta && h('span', { class: 'm' }, meta)));
     }));
     const go = $('#import-go');
-    go.disabled = !chosen;
-    go.textContent = chosen ? `Import ${chosen} task${chosen > 1 ? 's' : ''}` : 'Import';
+    go.disabled = !chosen.length;
+    go.textContent = chosen.length ? `Import ${chosen.length} task${chosen.length > 1 ? 's' : ''}` : 'Import';
   }
 
   function openImport() {
@@ -1377,9 +1457,19 @@ dialog::backdrop { background: var(--scrim); }
     sel.value = currentList() ? currentList().id : '__new';
     $('#import-new-mission').hidden = sel.value !== '__new';
     $('#import-new-mission').value = '';
-    renderImportPreview(0);
+    imp.total = 0;
+    $('#import-mission-label').textContent = 'Into mission';
+    renderImportPreview();
     $('#import-dialog').showModal();
     $('#import-text').focus();
+  }
+
+  async function addPerson(name) {
+    const ref = store.db.collection('members').doc();
+    const body = { name: name.trim().slice(0, 60), userId: null, createdAt: now() };
+    if (!(await write('members/' + ref.id, () => ref.set(body)))) return null;
+    if (!state.members.some((m) => m.id === ref.id)) state.members = [...state.members, { ...body, id: ref.id }];
+    return ref.id;
   }
 
   async function runImport() {
@@ -1387,29 +1477,73 @@ dialog::backdrop { background: var(--scrim); }
     if (!rows.length) return;
     const go = $('#import-go');
     go.disabled = true;
-    let listId = importTarget();
-    if (!listId) {
+    const stop = (msg) => { if (msg) toast(msg); renderImportPreview(); };
+
+    // 1. Missions: the fallback for rows without one, then any named in a Mission column.
+    const missionIds = new Map(state.lists.map((l) => [l.name.toLowerCase(), l.id]));
+    let fallbackId = importTarget();
+    if (!fallbackId && rows.some((r) => !r.mission)) {
       const name = $('#import-new-mission').value.trim();
-      if (!name) { toast('Name the new mission first.'); go.disabled = false; $('#import-new-mission').focus(); return; }
-      listId = await addMission(name);
-      if (!listId) { go.disabled = false; return; }
+      if (!name) { $('#import-new-mission').focus(); return stop('Name the new mission first.'); }
+      fallbackId = missionIds.get(name.toLowerCase()) || await addMission(name);
+      if (!fallbackId) return stop();
+      missionIds.set(name.toLowerCase(), fallbackId);
     }
+    for (const r of rows) {
+      if (!r.mission || missionIds.has(r.mission.toLowerCase())) continue;
+      go.textContent = `Adding mission ${r.mission}…`;
+      const id = await addMission(r.mission);
+      if (!id) return stop();
+      missionIds.set(r.mission.toLowerCase(), id);
+    }
+
+    // 2. People named in score columns (a blank name means you).
+    const people = new Map([['', ui.me]]);
+    for (const r of rows) {
+      for (const sc of r.scores) {
+        const key = (sc.person || '').toLowerCase();
+        if (people.has(key)) continue;
+        const found = findMember(sc.person);
+        const id = found ? found.id : await addPerson(sc.person);
+        if (!id) return stop();
+        people.set(key, id);
+      }
+    }
+
+    // 3. Tasks, in the order given.
+    let free = Math.max(0, NEXT_UP_MAX - nextUpItems().length);
+    let nextSkipped = 0, saved = 0;
     const base = Date.now();
-    let saved = 0;
     for (const [i, r] of rows.entries()) {
       go.textContent = `Importing ${i + 1} of ${rows.length}…`;
+      const listId = r.mission ? missionIds.get(r.mission.toLowerCase()) : fallbackId;
+      const scores = {};
+      for (const sc of r.scores) {
+        const id = people.get((sc.person || '').toLowerCase());
+        if (id) (scores[id] = scores[id] || {})[sc.dim] = sc.value;
+      }
+      const o = r.ownerRaw ? matchOwners(r.ownerRaw) : { ids: [], unknown: [] };
+      const notes = [r.notes, o.unknown.length ? `Owner: ${o.unknown.join(', ')}` : ''].filter(Boolean).join(' · ').slice(0, 2000);
+      const t = new Date(base + i).toISOString(); // keeps the order given
+      let nextUpAt = null;
+      if (r.nextUp && !r.done) { if (free > 0) { nextUpAt = t; free--; } else nextSkipped++; }
       const ref = store.db.collection('items').doc();
-      const t = new Date(base + i).toISOString(); // keeps the pasted order
-      const body = { listId, title: r.title, notes: r.notes, costAmount: r.costAmount, dueDate: r.dueDate || null, done: false, doneAt: null, createdBy: ui.me, owners: r.owners, nextUpAt: null, createdAt: t, updatedAt: t, scores: {} };
+      const body = {
+        listId, title: r.title, notes, costAmount: r.costAmount, dueDate: r.dueDate || null,
+        done: r.done, doneAt: r.done ? t : null, createdBy: ui.me, owners: o.ids, nextUpAt,
+        createdAt: t, updatedAt: t, scores,
+      };
       if (!(await write('items/' + ref.id, () => ref.set(body)))) break;
       if (!state.items.some((x) => x.id === ref.id)) state.items = [...state.items, { ...body, id: ref.id }];
       saved++;
     }
     $('#import-dialog').close();
-    selectList(listId);
-    toast(saved === rows.length
-      ? `Imported ${saved} task${saved > 1 ? 's' : ''} into ${missionName(listId)}. Score them to place them on the matrix.`
-      : `Imported ${saved} of ${rows.length} tasks. The rest weren’t saved.`);
+    const first = fallbackId || missionIds.get((rows[0].mission || '').toLowerCase());
+    if (first) selectList(first); else render();
+    const used = new Set(rows.slice(0, saved).map((r) => (r.mission ? missionIds.get(r.mission.toLowerCase()) : fallbackId)));
+    const where = used.size === 1 ? `into ${missionName([...used][0])}` : `into ${used.size} missions`;
+    toast((saved === rows.length ? `Imported ${saved} task${saved > 1 ? 's' : ''} ${where}.` : `Imported ${saved} of ${rows.length} tasks. The rest weren’t saved.`)
+      + (nextSkipped ? ` Next up was full, so ${nextSkipped} weren’t added to it.` : ''));
   }
 
   // ---- wiring ----------------------------------------------------------------------------
@@ -1431,7 +1565,8 @@ dialog::backdrop { background: var(--scrim); }
         return;
       }
       if (f.size > 1000000) { toast('That file is over 1 MB. Split it or paste part of it.'); e.target.value = ''; return; }
-      const text = await f.text();
+      // Match what the text box will hold: no byte-order mark, \n line endings.
+      const text = (await f.text()).replace(/^\ufeff/, '').replace(/\r\n?/g, '\n');
       imp.loadedText = text;
       imp.delim = ext === 'tsv' ? '\t' : ext === 'csv' ? sniffDelim(text) : null;
       $('#import-text').value = text;

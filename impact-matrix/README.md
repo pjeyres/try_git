@@ -44,7 +44,14 @@ counted in the banner).
 headings are stripped, and amounts like "€250" become the cost estimate), rows copied from
 Google Sheets or Excel, or a .csv/.tsv/.txt/.md file. Columns named Task, Notes, Cost, Owner,
 By when and Done (also in Dutch, German and French) are recognised. A preview lets you untick tasks;
-ones already done or already in the mission start unticked. Your lists
+ones already done or already in the mission start unticked.
+
+For a complete import, fill in `artifact/import-template.csv`. Its columns are Task, Mission,
+Owner, By when, Cost (€), Impact / Effort / Cost score for each person (for example
+`Impact (Peter)`; rename `(Partner)` to the other person's name), Next up, Done and Notes.
+Scores take 1–5 or the scale's words (Huge, Days, Pricey…). New missions are created, a
+new name in a score column adds that person, Next up still holds at most three tasks, and
+rows without a mission go into the mission chosen in the import window. Your lists
 are kept in the artifact's shared database, and each person is recognised by their Claude
 login. Share it by email with **Editor** access, and don't also turn on a public link:
 people invited from outside your account can only make changes while there is no public link.

@@ -203,6 +203,12 @@ main > *, #list-view > * { min-width: 0; }
 .chip-label .dot { width: 8px; height: 8px; border-radius: 50%; }
 .owner { font-size: .8rem; color: var(--text); }
 .owner .k { color: var(--muted); }
+.chip-label.due-soon { border-color: var(--cost-3); }
+.chip-label.due-over { border-color: var(--danger); color: var(--danger); }
+.chip-label.due-over .k { color: var(--danger); }
+.due-row { display: flex; gap: .75rem; align-items: center; }
+.due-row input { flex: 1 1 auto; min-width: 0; min-height: 2.6rem; color: var(--text); }
+.due-row input::-webkit-date-and-time-value { text-align: left; }
 .pin { flex: none; border-radius: 999px; padding: .2rem .65rem; font-size: .8rem; background: none; color: var(--muted); white-space: nowrap; }
 .pin.on { background: var(--sunken); border-color: var(--accent); color: var(--text); }
 .owners-pick { display: flex; flex-wrap: wrap; gap: .4rem; }
@@ -387,6 +393,12 @@ dialog::backdrop { background: var(--scrim); }
       </div>
       <div id="my-scores" class="scores"></div>
       <div id="other-scores" class="others"></div>
+      <div class="field"><label for="item-due">By when</label>
+        <span class="due-row">
+          <input id="item-due" name="dueDate" type="date">
+          <button type="button" class="link" id="clear-due">Clear</button>
+        </span>
+      </div>
       <label class="field">Estimated cost
         <span class="money"><span>€</span><input id="item-cost" name="costAmount" type="number" min="0" step="any" inputmode="decimal" placeholder="optional"></span>
       </label>
@@ -411,7 +423,7 @@ dialog::backdrop { background: var(--scrim); }
       <h2 id="import-title" style="flex:1">Import tasks</h2>
       <button value="cancel" class="icon" aria-label="Close" formnovalidate>✕</button>
     </div>
-    <p class="muted">Paste from a doc or note (one task per line), or rows copied from Google Sheets or Excel. Bullets and checkboxes are removed, amounts like €250 become the cost estimate, and columns named Task, Notes, Cost and Owner are recognised.</p>
+    <p class="muted">Paste from a doc or note (one task per line), or rows copied from Google Sheets or Excel. Bullets and checkboxes are removed, “€250” becomes the cost and “by 24 Oct” the by-when date, and columns named Task, Notes, Cost, Owner and By when are recognised.</p>
     <textarea id="import-text" rows="6" placeholder="Fix leaking tap €15&#10;• Repaint living room&#10;[ ] Clean gutters"></textarea>
     <label class="file-pick">Or choose a file (.csv, .tsv, .txt or .md)
       <input type="file" id="import-file" accept=".csv,.tsv,.txt,.md,text/plain,text/csv,text/tab-separated-values,text/markdown">
@@ -606,9 +618,42 @@ dialog::backdrop { background: var(--scrim); }
   const missionName = (id) => (state.lists.find((l) => l.id === id) || {}).name || '';
   const ownerIds = (item) => (Array.isArray(item.owners) ? item.owners : []).filter((id) => state.members.some((m) => m.id === id));
   const nextUpItems = () => state.items.filter((i) => i.nextUpAt && !i.done).sort((a, b) => String(a.nextUpAt).localeCompare(String(b.nextUpAt))).slice(0, NEXT_UP_MAX);
+  // "By when" dates are stored as local calendar days, YYYY-MM-DD.
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const isoDay = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  const fromIsoDay = (v) => { const [y, m, d] = v.split('-').map(Number); return new Date(y, m - 1, d); };
+  const validDue = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  function daysUntil(v) {
+    const t = new Date();
+    return Math.round((fromIsoDay(v) - new Date(t.getFullYear(), t.getMonth(), t.getDate())) / 864e5);
+  }
+  function dueText(v) {
+    const d = fromIsoDay(v);
+    const opts = { day: 'numeric', month: 'short' };
+    if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+    return d.toLocaleDateString(undefined, opts);
+  }
+  // A short, relative label: Overdue · 12 Oct, Due today, Due tomorrow, By Fri, By 24 Oct.
+  function dueLabel(item) {
+    if (!validDue(item.dueDate)) return null;
+    const n = daysUntil(item.dueDate);
+    if (item.done) return h('span', { class: 'chip-label', title: 'By when' }, h('span', { class: 'k' }, 'By'), dueText(item.dueDate));
+    let text, cls = '';
+    if (n < 0) { text = ['Overdue', dueText(item.dueDate)]; cls = ' due-over'; }
+    else if (n === 0) { text = ['Due', 'today']; cls = ' due-soon'; }
+    else if (n === 1) { text = ['Due', 'tomorrow']; cls = ' due-soon'; }
+    else if (n < 7) { text = ['By', fromIsoDay(item.dueDate).toLocaleDateString(undefined, { weekday: 'short' })]; cls = ' due-soon'; }
+    else text = ['By', dueText(item.dueDate)];
+    return h('span', { class: 'chip-label' + cls, title: 'By when: ' + fromIsoDay(item.dueDate).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) },
+      h('span', { class: 'k' }, text[0]), text[1]);
+  }
+  const isOverdue = (item) => !item.done && validDue(item.dueDate) && daysUntil(item.dueDate) < 0;
+
   // Effort as time and cost in words (plus the € estimate), using combined scores.
   function taskLabels(item, s) {
     const out = [];
+    const due = dueLabel(item);
+    if (due) out.push(due);
     const effort = labelFor('effort', s.effort);
     if (effort) out.push(h('span', { class: 'chip-label', title: 'Effort' }, h('span', { class: 'k' }, 'Effort'), effort));
     const cost = labelFor('cost', s.cost);
@@ -779,6 +824,8 @@ dialog::backdrop { background: var(--scrim); }
     const mine = ui.me ? items.filter((i) => missingScorers(i, [ui.me]).length) : [];
     const debates = items.filter((i) => disagreement(i) >= 2);
     const parts = [];
+    const overdue = items.filter(isOverdue).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+    if (overdue.length) parts.push(h('button', { type: 'button', class: 'link', onclick: () => openItem(overdue[0].id) }, `${overdue.length} overdue`));
     if (mine.length) parts.push(h('button', { type: 'button', class: 'link', onclick: () => openItem(mine[0].id) }, `${mine.length} task${mine.length > 1 ? 's need' : ' needs'} your scores`));
     if (debates.length) parts.push(h('button', { type: 'button', class: 'link', onclick: () => openItem(debates[0].id) }, `${debates.length} to talk about (you scored very differently)`));
     const el = $('#todo-banner');
@@ -874,7 +921,7 @@ dialog::backdrop { background: var(--scrim); }
         onclick: () => openItem(item.id),
         onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openItem(item.id); } },
       },
-      svg('title', {}, `${item.title}\nImpact ${fmt(s.impact)} · Effort ${fmt(s.effort)} · Cost ${fmt(s.cost)}${item.costAmount != null ? ` (${money(item.costAmount)})` : ''}`),
+      svg('title', {}, `${item.title}\nImpact ${fmt(s.impact)} · Effort ${fmt(s.effort)} · Cost ${fmt(s.cost)}${item.costAmount != null ? ` (${money(item.costAmount)})` : ''}${validDue(item.dueDate) ? `\nBy ${dueText(item.dueDate)}` : ''}`),
       debate ? svg('circle', { cx, cy, r: r + 4, class: 'debate-ring' }) : null,
       svg('circle', { cx, cy, r, style: `fill:${costColor(s.cost)}`, class: s.cost == null ? 'no-cost' : '' }),
       svg('text', { x: labelPos.x, y: labelPos.y, 'text-anchor': labelPos.anchor, class: 'dot-label' }, label)));
@@ -931,6 +978,7 @@ dialog::backdrop { background: var(--scrim); }
     $('#item-title').value = item.title;
     $('#item-notes').value = item.notes || '';
     $('#item-cost').value = item.costAmount == null ? '' : item.costAmount;
+    $('#item-due').value = validDue(item.dueDate) ? item.dueDate : '';
     $('#item-list').replaceChildren(...state.lists.map((l) => h('option', { value: l.id }, l.name)));
     $('#item-list').value = item.listId;
     renderDialog();
@@ -1022,6 +1070,10 @@ dialog::backdrop { background: var(--scrim); }
       if (!value) { $('#item-title').value = item.title; toast('A task needs a title.'); return; }
     } else if (field === 'notes') {
       value = raw.slice(0, 2000);
+    } else if (field === 'dueDate') {
+      if (raw === '') value = null;
+      else if (validDue(raw)) value = raw;
+      else { toast('Pick a date, or clear it.'); return; }
     } else if (field === 'costAmount') {
       if (raw === '') value = null;
       else {
@@ -1030,7 +1082,7 @@ dialog::backdrop { background: var(--scrim); }
         value = Math.round(n * 100) / 100;
       }
     }
-    if ((item[field] ?? (field === 'costAmount' ? null : '')) === value) return;
+    if ((item[field] ?? (field === 'costAmount' || field === 'dueDate' ? null : '')) === value) return;
     patchItem(item, { [field]: value });
   }
 
@@ -1097,9 +1149,41 @@ dialog::backdrop { background: var(--scrim); }
     ['notes', /^(notes?|details?|comments?|info|description|more|why|notities|opmerkingen?|notizen|bemerkungen?|remarques?)$/],
     ['costAmount', /^(costs?|price|budget|amount|estimated? ?cost|cost estimate|€|eur|euros?|spend|kosten|prijs|bedrag|preis|betrag|co[uû]ts?|prix|montant)$/],
     ['owners', /^(owners?|who|assigned ?to|assignee|person|responsible|wie|eigenaar|verantwoordelijke?|wer|zust[aä]ndig|besitzer|qui|responsable)$/],
+    ['dueDate', /^(by when|due|due date|due by|deadline|date|when|by|datum|wanneer|uiterlijk|deadline datum|f[aä]llig|f[aä]llig am|bis|bis wann|termin|[ée]ch[ée]ance|date limite)$/],
     ['done', /^(done|status|complete|completed|finished|klaar|gedaan|erledigt|fertig|fait|termin[eé])$/],
   ];
   const DONE_VALUE = /^(x|y|yes|done|true|complete|completed|finished|ja|klaar|gedaan|erledigt|fertig|oui|fait|✓|✔|☑|✅)$/i;
+  const MONTHS = { jan: 1, feb: 2, fev: 2, mar: 3, mrt: 3, maa: 3, apr: 4, avr: 4, may: 5, mei: 5, mai: 5, jun: 6, jul: 7, aug: 8, aou: 8, sep: 9, oct: 10, okt: 10, nov: 11, dec: 12, dez: 12 };
+  const monthNum = (w) => {
+    const k = w.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (k.startsWith('juin')) return 6;
+    if (k.startsWith('juil')) return 7;
+    return MONTHS[k.slice(0, 3)] || null;
+  };
+  function dayOrNull(y, m, d) {
+    if (!y || !m || !d) return null;
+    const dt = new Date(y, m - 1, d);
+    return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d ? isoDay(dt) : null;
+  }
+  // Accepts 2026-10-24, 24/10/2026, 24.10.26, 24 Oct (2026), Oct 24(th) (2026). Slashes read day first.
+  function parseDue(raw) {
+    const t = String(raw || '').trim().replace(/^(?:by|before|due|on|tegen|voor|bis|avant le)\s+/i, '');
+    if (!t) return null;
+    const year = new Date().getFullYear();
+    let m = t.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+    if (m) return dayOrNull(+m[1], +m[2], +m[3]);
+    m = t.match(/^(\d{1,2})[/.\-](\d{1,2})(?:[/.\-](\d{2,4}))?$/);
+    if (m) {
+      let [a, b, y] = [+m[1], +m[2], m[3] ? +m[3] : year];
+      if (y < 100) y += 2000;
+      return b > 12 && a <= 12 ? dayOrNull(y, a, b) : dayOrNull(y, b, a);
+    }
+    m = t.match(/^(?:[a-zé]+,?\s+)?(\d{1,2})(?:st|nd|rd|th|e)?\.?\s+([a-zéû]{3,})\.?,?(?:\s+(\d{4}))?$/i);
+    if (m && monthNum(m[2])) return dayOrNull(m[3] ? +m[3] : year, monthNum(m[2]), +m[1]);
+    m = t.match(/^(?:[a-zé]+,?\s+)?([a-zéû]{3,})\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?(?:\s+(\d{4}))?$/i);
+    if (m && monthNum(m[1])) return dayOrNull(m[3] ? +m[3] : year, monthNum(m[1]), +m[2]);
+    return null;
+  }
   const MONEY = /(?:€\s?(\d[\d.,]*\d|\d)|(\d[\d.,]*\d|\d)\s?(?:€|eur(?:os?)?\b))/i;
   const imp = { overrides: new Map(), rows: [], loadedText: null, delim: null };
 
@@ -1137,8 +1221,15 @@ dialog::backdrop { background: var(--scrim); }
       costAmount = parseAmount(m[1] || m[2]);
       if (costAmount != null) t = t.replace(m[0], ' ').replace(/\(\s*\)/g, '');
     }
+    // "… by 24 Oct", "(due 2026-11-01)", "- deadline: 3/11"
+    let dueDate = null;
+    const dm = t.match(/[\s(\-–—,]*\b(?:by|before|due|deadline|uiterlijk|voor|bis)\b\s*:?\s+([^()]+?)\)?\s*$/i);
+    if (dm) {
+      dueDate = parseDue(dm[1]);
+      if (dueDate) t = t.slice(0, dm.index);
+    }
     t = t.replace(/\s{2,}/g, ' ').replace(/^[\s\-–—:|,]+|[\s\-–—:|,(]+$/g, '').trim();
-    return t ? { title: t.slice(0, 200), done, costAmount } : null;
+    return t ? { title: t.slice(0, 200), done, costAmount, dueDate } : null;
   }
 
   function parseDelimited(text, delim) {
@@ -1218,8 +1309,13 @@ dialog::backdrop { background: var(--scrim); }
         owners = o.ids;
         if (o.unknown.length) notes.push(`Owner: ${o.unknown.join(', ')}`);
       }
+      let dueDate = c.dueDate;
+      if (map.dueDate !== undefined && row[map.dueDate]) {
+        const d = parseDue(row[map.dueDate]);
+        if (d) dueDate = d; else notes.push(`By when: ${row[map.dueDate]}`);
+      }
       const done = c.done || (map.done !== undefined && DONE_VALUE.test(row[map.done] || ''));
-      out.push({ title: c.title, done, costAmount, owners, notes: notes.join(' · ').slice(0, 2000) });
+      out.push({ title: c.title, done, costAmount, dueDate, owners, notes: notes.join(' · ').slice(0, 2000) });
     }
     return out;
   }
@@ -1256,6 +1352,7 @@ dialog::backdrop { background: var(--scrim); }
         + (totalFound > IMPORT_MAX ? ` · only the first ${IMPORT_MAX} are shown` : '');
     $('#import-preview').replaceChildren(...imp.rows.map((r) => {
       const meta = [
+        r.dueDate && 'By ' + dueText(r.dueDate),
         r.costAmount != null && money(r.costAmount),
         r.owners.length && (r.owners.length > 1 ? 'Owners ' : 'Owner ') + r.owners.map(memberName).join(' & '),
         r.notes && (r.notes.length > 80 ? r.notes.slice(0, 79) + '…' : r.notes),
@@ -1303,7 +1400,7 @@ dialog::backdrop { background: var(--scrim); }
       go.textContent = `Importing ${i + 1} of ${rows.length}…`;
       const ref = store.db.collection('items').doc();
       const t = new Date(base + i).toISOString(); // keeps the pasted order
-      const body = { listId, title: r.title, notes: r.notes, costAmount: r.costAmount, done: false, doneAt: null, createdBy: ui.me, owners: r.owners, nextUpAt: null, createdAt: t, updatedAt: t, scores: {} };
+      const body = { listId, title: r.title, notes: r.notes, costAmount: r.costAmount, dueDate: r.dueDate || null, done: false, doneAt: null, createdBy: ui.me, owners: r.owners, nextUpAt: null, createdAt: t, updatedAt: t, scores: {} };
       if (!(await write('items/' + ref.id, () => ref.set(body)))) break;
       if (!state.items.some((x) => x.id === ref.id)) state.items = [...state.items, { ...body, id: ref.id }];
       saved++;
@@ -1355,7 +1452,7 @@ dialog::backdrop { background: var(--scrim); }
       if (!title || !list) return;
       const ref = store.db.collection('items').doc();
       const t = now();
-      const body = { listId: list.id, title, notes: '', costAmount: null, done: false, doneAt: null, createdBy: ui.me, owners: [], nextUpAt: null, createdAt: t, updatedAt: t, scores: {} };
+      const body = { listId: list.id, title, notes: '', costAmount: null, dueDate: null, done: false, doneAt: null, createdBy: ui.me, owners: [], nextUpAt: null, createdAt: t, updatedAt: t, scores: {} };
       if (await write('items/' + ref.id, () => ref.set(body))) {
         $('#add-item-title').value = '';
         if (!state.items.some((i) => i.id === ref.id)) state.items = [...state.items, { ...body, id: ref.id }];
@@ -1374,7 +1471,8 @@ dialog::backdrop { background: var(--scrim); }
     onPref('#cost-weight', 'costWeight', (t) => Number(t.value) / 100);
     onPref('#show-done', 'showDone', (t) => t.checked);
 
-    const fields = { title: '#item-title', notes: '#item-notes', costAmount: '#item-cost', listId: '#item-list' };
+    const fields = { title: '#item-title', notes: '#item-notes', costAmount: '#item-cost', dueDate: '#item-due', listId: '#item-list' };
+    $('#clear-due').addEventListener('click', () => { $('#item-due').value = ''; saveField('dueDate', ''); });
     for (const [field, sel] of Object.entries(fields)) $(sel).addEventListener('change', (e) => saveField(field, e.target.value));
     $('#toggle-nextup').addEventListener('click', () => {
       const item = state.items.find((i) => i.id === ui.openItemId);

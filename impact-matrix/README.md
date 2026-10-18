@@ -37,11 +37,13 @@ You can also note an estimated cost in money (€ by default).
 version in active use and has a few extras the self-hosted app doesn't have yet: lists are
 called **missions**, tasks can have **owners**, a shared **Next up** shortlist holds at most
 three tasks (with suggestions from the current mission), task rows show effort as time
-(Minutes, Hours, Days, Weeks, Months) and cost in words with the € estimate.
+(Minutes, Hours, Days, Weeks, Months) and cost in words with the € estimate, and tasks can
+have a **by when** date (shown as Due today, By Fri, Overdue · 12 Oct, with overdue tasks
+counted in the banner).
 **Import** takes text pasted from a doc or note (one task per line; bullets, checkboxes and
 headings are stripped, and amounts like "€250" become the cost estimate), rows copied from
-Google Sheets or Excel, or a .csv/.tsv/.txt/.md file. Columns named Task, Notes, Cost, Owner
-and Done (also in Dutch, German and French) are recognised. A preview lets you untick tasks;
+Google Sheets or Excel, or a .csv/.tsv/.txt/.md file. Columns named Task, Notes, Cost, Owner,
+By when and Done (also in Dutch, German and French) are recognised. A preview lets you untick tasks;
 ones already done or already in the mission start unticked. Your lists
 are kept in the artifact's shared database, and each person is recognised by their Claude
 login. Share it by email with **Editor** access, and don't also turn on a public link:

@@ -1,0 +1,67 @@
+{
+  "_comment": "Copy and edit for a real overflow. Keys starting with _ are ignored notes.",
+  "output_dir": "out/CSO_NAME",
+
+  "rainfall": {
+    "path": "data/hydromaster_GAUGE.csv",
+    "_time_col": "Date/Time column; or [\"Date\", \"Time\"] for split columns; guessed if omitted",
+    "units": "mm",
+    "_units": "mm = depth per record, mm/h = intensity, tips = tip count (also set tip_mm)",
+    "tz": "UTC",
+    "step": "5min",
+    "label": "end"
+  },
+
+  "edm": {
+    "events_path": "data/edm_events.csv",
+    "start_col": "Start Time",
+    "end_col": "Stop Time",
+    "tz": "Europe/London",
+    "site_col": "Permit Reference",
+    "site": "PERMIT_REF",
+    "exclude": [["2022-03-01", "2022-04-15"]],
+    "_exclude": "monitor outages or periods when the overflow was not representative",
+    "exclude_dry_spills": true,
+    "dry_spill_mm": 2.0,
+    "_annual_alternative": "if only annual returns exist, replace events_path/start_col/end_col with annual_path, year_col, count_col, duration_col"
+  },
+
+  "gis": {
+    "pipes": "data/sewer_pipes.gpkg",
+    "mastermap": "data/mastermap_topography_area.gpkg",
+    "cso_node": "SK1234_5678",
+    "us_col": "US_NODE",
+    "ds_col": "DS_NODE",
+    "id_col": "PIPE_ID",
+    "continuation_id": null,
+    "diameter_col": "DIAMETER",
+    "diameter_units": "mm",
+    "us_il_col": "US_INVERT",
+    "ds_il_col": "DS_INVERT",
+    "system_col": "SYSTEM_TYPE",
+    "combined_systems": ["combined", "c"],
+    "foul_systems": ["foul", "f"],
+    "stop_nodes": [],
+    "max_dist": 60
+  },
+
+  "population": null,
+  "q_pff_l_s": null,
+  "existing_storage_m3": 0,
+
+  "calibration": {
+    "maxiter": 40,
+    "popsize": 12,
+    "seed": 1,
+    "prior_sigma": {"area_factor": 0.35, "q_pff_factor": 0.35},
+    "_bounds": "optional; drop q_pff_factor from bounds if q_pff_l_s is measured"
+  },
+
+  "sizing": {
+    "target": 10,
+    "metric": "mean",
+    "empty_rate_l_s": null,
+    "rain_uplift": 1.0,
+    "ensemble_sets": 10
+  }
+}
